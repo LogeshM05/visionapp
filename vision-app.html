@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vision Store — SS’26</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; padding: 0; font-family: Inter, -apple-system, sans-serif; background: #EDE8DD; height: 100%; }
+#root { height: 100%; }
+/* Scrollbars hidden; scrolling still works (touch, wheel, keyboard) */
+html, body, #root, #root * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar,
+#root::-webkit-scrollbar, #root *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+button, input { font-family: inherit; }
+.boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #EDE8DD; z-index: 9999; transition: opacity .5s ease; }
+.boot-mark { font-size: 24px; font-weight: 800; letter-spacing: 4px; color: #1A1815; font-family: Inter, sans-serif; }
+.boot-mark span { color: #B91C1C; }
+.boot-sub { font-size: 9px; font-weight: 700; letter-spacing: 2.4px; color: #7A736A; margin-top: 14px; font-family: Inter, sans-serif; }
+.boot-dots { margin-top: 22px; display: flex; gap: 5px; }
+.boot-dots span { width: 4px; height: 4px; background: #1A1815; border-radius: 999px; animation: bootp 1.2s infinite; opacity: .25; }
+.boot-dots span:nth-child(2) { animation-delay: .15s; }
+.boot-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes bootp { 0%, 100% { opacity: .2; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
+#root:not(:empty) ~ .boot { opacity: 0; pointer-events: none; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?deps=react@18.3.1&external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<div class="boot">
+  <div class="boot-mark">VISION STORE<span>.</span></div>
+  <div class="boot-sub">SS’26 — VOLUME ONE</div>
+  <div class="boot-dots"><span></span><span></span><span></span></div>
+</div>
+<script type="text/babel" data-type="module" data-presets="react">
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Search, Heart, ShoppingBag, User, Bell, ChevronRight, ChevronLeft,
+  Star, Sun, Moon, Eye, EyeOff, Plus, Minus, MapPin, CreditCard,
+  Truck, Shield, ArrowRight, ArrowLeft, Check, Package, X,
+  Settings, LogOut, ChevronDown, Lock, Mail, Share2, Sparkles,
+  HelpCircle, Menu, Apple, Smartphone, Globe, Tag, Award, Gift,
+  Calendar, TrendingUp, Crown, Zap, MessageCircle, Store, Filter,
+  SlidersHorizontal, Clock,
+} from 'lucide-react';
+import { createRoot } from 'react-dom/client';
+
+/* Persisted after sign-in so returning visitors land on the shop, not splash/login. */
+const LS_VISION_LOGGED_IN = 'visionStoreLoggedIn';
+const LS_VISION_MEMBER_EMAIL = 'visionStore_memberEmail';
+
+function getInitialScreen() {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(LS_VISION_LOGGED_IN) === '1') return 'home';
+  } catch (e) { /* private mode / blocked storage */ }
+  return 'splash';
+}
+
+function getStoredMemberEmail() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const e = localStorage.getItem(LS_VISION_MEMBER_EMAIL);
+      if (e) return e;
+    }
+  } catch (e) {}
+  return '';
+}
+
+function saveVisionSession(email) {
+  try {
+    localStorage.setItem(LS_VISION_LOGGED_IN, '1');
+    if (email) localStorage.setItem(LS_VISION_MEMBER_EMAIL, email);
+  } catch (e) {}
+}
+
+function clearVisionSession() {
+  try {
+    localStorage.removeItem(LS_VISION_LOGGED_IN);
+    localStorage.removeItem(LS_VISION_MEMBER_EMAIL);
+  } catch (e) {}
+}
+
+/** Native Android WebView: forwards credentials to the app after successful validation. */
+function notifyAndroidLogin(email, password) {
+  try {
+    if (typeof window !== 'undefined' && window.AndroidApp && typeof window.AndroidApp.login === 'function') {
+      window.AndroidApp.login(email, password);
+    } else {
+      console.log('Mock Login Success:', email);
+      // alert('Login successful! (Android bridge not found)');
+    }
+  } catch (e) {
+    console.warn('notifyAndroidLogin', e);
+  }
+}
+
+/* ──────── DESIGN TOKENS ──────── */
+const r = { sm: 4, md: 6, lg: 10, xl: 14, pill: 999 };
+
+const T = {
+  display1: { fontSize: 60, fontWeight: 200, letterSpacing: -2.6, lineHeight: 0.92 },
+  display2: { fontSize: 42, fontWeight: 200, letterSpacing: -1.6, lineHeight: 0.95 },
+  display3: { fontSize: 32, fontWeight: 200, letterSpacing: -1.2, lineHeight: 1.05 },
+  display4: { fontSize: 24, fontWeight: 200, letterSpacing: -0.7, lineHeight: 1.15 },
+  body:     { fontSize: 13, fontWeight: 400, lineHeight: 1.55, letterSpacing: 0 },
+  bodySm:   { fontSize: 12, fontWeight: 400, lineHeight: 1.5,  letterSpacing: 0 },
+  caption:  { fontSize: 11, fontWeight: 400, lineHeight: 1.45 },
+  micro:    { fontSize: 10, fontWeight: 500, lineHeight: 1.4 },
+  price:    { fontSize: 13, fontWeight: 600, letterSpacing: -0.1 },
+  priceL:   { fontSize: 22, fontWeight: 500, letterSpacing: -0.3 },
+  eyebrow:  { fontSize: 9,  fontWeight: 700, letterSpacing: 2.4, textTransform: 'uppercase' },
+  eyebrowS: { fontSize: 8,  fontWeight: 700, letterSpacing: 2.6, textTransform: 'uppercase' },
+  button:   { fontSize: 11, fontWeight: 700, letterSpacing: 2,   textTransform: 'uppercase' },
+  buttonSm: { fontSize: 10, fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase' },
+  meta:     { fontSize: 11, fontWeight: 500, letterSpacing: 0.1 },
+  wordmark: { fontSize: 14, fontWeight: 800, letterSpacing: 3.5 },
+};
+
+/* ──────── TIERS ──────── */
+const TIERS = [
+  { id:'ember',   name:'Ember',   threshold:0,    next:2500, color:'#B91C1C', gradient:['#7F1D1D','#B91C1C','#DC2626'], foil:'#FCA5A5',
+    benefits:['Free standard delivery on orders over $50','Members-only seasonal previews','Birthday gift on your special day','14-day extended returns'] },
+  { id:'silver',  name:'Silver',  threshold:2500, next:5000, color:'#7E8597', gradient:['#9DA5B4','#C9CDD4','#7E8597'], foil:'#E5E7EB',
+    benefits:['5% rewards on every order','Complimentary express delivery','Early access to new collections','30-day extended returns','Priority email support'] },
+  { id:'gold',    name:'Gold',    threshold:5000, next:7500, color:'#8B6F35', gradient:['#5C4A24','#B8965A','#D4B57E'], foil:'#F5E6C7',
+    benefits:['10% rewards on every order','Complimentary alterations','Birthday gift + double rewards month','Priority concierge','Free returns — no time limit','Invitation to seasonal previews'] },
+  { id:'platinum',name:'Platinum',threshold:7500, next:null, color:'#525965', gradient:['#2A2F38','#525965','#9CA3AF'], foil:'#E5E4E2',
+    benefits:['15% rewards on every order','Dedicated personal stylist','Atelier visits & private fittings','Invitation-only events','Lifetime warranty on Vision Studio','Complimentary monogramming','24/7 white-glove concierge'] },
+];
+const getTier = (s) => { for (let i=TIERS.length-1;i>=0;i--) if (s>=TIERS[i].threshold) return TIERS[i]; return TIERS[0]; };
+
+const MEMBER_TIER_BY_LOCAL_NAME = {
+  dhakshin:'platinum',
+  radhika:'platinum',
+  buvanesh:'gold',
+  keerthivasan:'silver',
+  sathyaprakash:'silver',
+  logeshwar:'ember',
+};
+
+function getMemberSpendForEmail(email) {
+  const local = String(email || '').trim().split('@')[0].toLowerCase();
+  const targetTier = MEMBER_TIER_BY_LOCAL_NAME[local] || 'ember';
+  const tierObj = TIERS.find(x => x.id === targetTier);
+  return tierObj ? tierObj.threshold : 0;
+}
+
+/* ──────── PRODUCT SILHOUETTES ──────── */
+const Silhouettes = {
+  coat:     { vb:'0 0 100 130', d:['M 30 25 L 38 18 L 50 22 L 62 18 L 70 25 L 78 30 L 80 65 L 75 70 L 75 110 L 25 110 L 25 70 L 20 65 L 22 30 Z','M 50 22 L 50 110','M 38 30 L 47 50','M 62 30 L 53 50'] },
+  bag:      { vb:'0 0 100 130', d:['M 22 50 L 78 50 L 80 110 L 20 110 Z','M 35 50 Q 35 22 50 22 Q 65 22 65 50','M 22 60 L 78 60','M 47 70 L 53 70 L 53 75 L 47 75 Z'] },
+  bracelet: { vb:'0 0 100 130', d:['M 20 60 Q 50 80 80 60 Q 50 40 20 60 Z','M 28 58 L 28 64','M 38 62 L 38 70','M 50 64 L 50 74','M 62 62 L 62 70','M 72 58 L 72 64'] },
+  trousers: { vb:'0 0 100 130', d:['M 28 22 L 72 22 L 75 65 L 65 110 L 55 110 L 53 65 L 47 65 L 45 110 L 35 110 L 25 65 Z','M 28 32 L 72 32','M 50 32 L 50 60'] },
+  dress:    { vb:'0 0 100 130', d:['M 36 22 L 44 18 L 56 18 L 64 22 L 70 35 L 80 110 L 20 110 L 30 35 Z','M 44 28 L 56 28 L 56 38 L 44 38 Z'] },
+  knit:     { vb:'0 0 100 130', d:['M 24 35 L 36 25 L 50 28 L 64 25 L 76 35 L 80 50 L 76 105 L 24 105 L 20 50 Z','M 42 28 L 42 38 L 58 38 L 58 28','M 24 60 L 76 60'] },
+  glasses:  { vb:'0 0 100 130', d:['M 12 65 Q 12 45 30 45 Q 48 45 48 65 Q 48 80 30 80 Q 12 80 12 65 Z','M 52 65 Q 52 45 70 45 Q 88 45 88 65 Q 88 80 70 80 Q 52 80 52 65 Z','M 48 60 L 52 60','M 12 50 L 4 45','M 88 50 L 96 45'] },
+  blazer:   { vb:'0 0 100 130', d:['M 25 28 L 38 22 L 50 32 L 62 22 L 75 28 L 78 40 L 76 110 L 24 110 L 22 40 Z','M 50 32 L 42 55 L 50 75 L 58 55 Z','M 50 75 L 50 110','M 32 60 L 38 65 L 38 73 L 32 68 Z'] },
+  leaf:     { vb:'0 0 100 130', d:['M 50 18 Q 80 35 80 70 Q 80 110 50 110 Q 20 110 20 70 Q 20 35 50 18 Z','M 50 18 L 50 110','M 50 45 L 30 55','M 50 45 L 70 55','M 50 65 L 30 75','M 50 65 L 70 75','M 50 85 L 30 95','M 50 85 L 70 95'] },
+  gift:     { vb:'0 0 100 130', d:['M 18 40 L 82 40 L 82 110 L 18 110 Z','M 50 40 L 50 110','M 18 60 L 82 60','M 38 40 Q 28 22 35 16','M 35 16 Q 50 22 50 35','M 62 40 Q 72 22 65 16','M 65 16 Q 50 22 50 35'] },
+  card:     { vb:'0 0 100 130', d:['M 12 45 L 88 45 L 88 90 L 12 90 Z','M 12 58 L 88 58','M 22 72 L 38 72','M 22 78 L 50 78'] },
+};
+
+/** Product hero photos (paths relative to this HTML file). */
+const SILHOUETTE_IMG = {
+  coat: 'img/coat.jpg',
+  bag: 'img/bag.jpg',
+  bracelet: 'img/bracelet.jpg',
+  trousers: 'img/trousers.jpg',
+  dress: 'img/dress.jpg',
+  knit: 'img/knit.jpg',
+  glasses: 'img/glasses.jpg',
+  blazer: 'img/blazer.jpg',
+};
+
+/** Editorial banners — local JPGs plus stock photos (Unsplash / Pexels; use their license terms for shipped assets). */
+const BANNER = {
+  hero: 'img/hero_banner.png',
+  splash: 'img/hero_banner.png',
+  beauty: 'img/beauty_banner.jpg',
+  crafted: 'img/crafted_banner.jpg',
+  summer: 'img/summer_edit.jpg',
+  newSeason: 'img/banner_new_season.jpg',
+  visionStudio: 'img/banner_vision_studio.jpg',
+  springEdit: 'img/banner_spring_edit.jpg',
+  women: 'img/banner_women.jpg',
+  men: 'img/banner_men.jpg',
+  electronics: 'img/elec_cover.png',
+  sale: 'img/banner_sale.jpg',
+  story: 'img/banner_story.jpg',
+  promoSummer: 'img/promo_summer.jpg',
+  promoStock: 'img/promo_stock.jpg',
+  promoMember: 'img/promo_member.jpg',
+  promoDelivery: 'img/promo_delivery.jpg',
+  eventEid: 'img/event_eid.jpg',
+  eventMothers: 'img/event_mothers.jpg',
+  eventWedding: 'img/event_wedding.jpg',
+  collLinen: 'img/coll_linen.jpg',
+  collTailored: 'img/coll_tailored.jpg',
+  collSilk: 'img/coll_silk.jpg',
+  collEvening: 'img/coll_evening.jpg',
+  collAccessories: 'img/coll_accessories.jpg',
+};
+
+const SilOverlay = ({ kind, color, opacity=0.28, width='54%' }) => {
+  const s = Silhouettes[kind];
+  if (!s) return null;
+  return (
+    <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+      <svg viewBox={s.vb} style={{ width, maxHeight:'62%', color, opacity }}>
+        {s.d.map((d,i) => <path key={i} d={d} stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>)}
+      </svg>
+    </div>
+  );
+};
+
+/* ──────── PRODUCTS ──────── */
+const PRODUCTS = [
+  { id:1, silhouette:'coat', name:'Oversized cotton-blend coat', brand:'Vision Studio', price:189, mrp:249, rating:4.7, reviews:2840, sale:false,
+    bg:['#E8E1D6','#D4C9B7','#A89880'],
+    images:[['#E8E1D6','#D4C9B7','#A89880'],['#D4C9B7','#A89880','#7B6D5A'],['#F0EAE0','#D8CDB9','#A89880'],['#A89880','#7B6D5A','#3E342A']],
+    description:'A relaxed cotton-blend coat tailored in our Porto atelier. Drop shoulders, hidden plackets, and corozo buttons. Cut for the long view.',
+    materials:'62% cotton · 38% wool · Cupro lining' },
+  { id:2, silhouette:'bag', name:'Soft leather crossbody bag', brand:'Maison Verte', price:145, rating:4.5, reviews:1203, sale:false,
+    bg:['#A87E58','#7B5733','#4A341E'],
+    images:[['#A87E58','#7B5733','#4A341E'],['#C49870','#8B6240','#5A3E22'],['#7B5733','#4A341E','#2A1D10'],['#A87E58','#8B6240','#7B5733']],
+    description:'A pared-back crossbody in vegetable-tanned leather. Adjustable strap, magnetic closure, and a single interior pocket.',
+    materials:'Full-grain Italian leather · Brass hardware' },
+  { id:3, silhouette:'bracelet', name:'Sculpted gold chain bracelet', brand:'Vision Edit', price:79, mrp:119, rating:4.8, reviews:5621, sale:true,
+    bg:['#F0EDE7','#DDD2BB','#C4A876'],
+    images:[['#F0EDE7','#DDD2BB','#C4A876'],['#DDD2BB','#C4A876','#9B8048'],['#F5F2EC','#E8DFC4','#C4A876'],['#C4A876','#9B8048','#6B5732']],
+    description:'A sculptural chain in 18k gold-plated brass. Hand-finished links, lobster clasp. Designed to layer.',
+    materials:'18k gold-plated brass · Hypoallergenic' },
+  { id:4, silhouette:'trousers', name:'Wide-leg pleated trousers', brand:'Atelier Nord', price:78, rating:4.4, reviews:432, sale:false,
+    bg:['#1F1F1F','#2A2A2A','#0A0A0A'],
+    images:[['#1F1F1F','#2A2A2A','#0A0A0A'],['#3A3A3A','#1F1F1F','#0A0A0A'],['#2A2A2A','#0A0A0A','#000000'],['#1F1F1F','#1A1A1A','#0E0E0E']],
+    description:'Front-pleated trousers in stretch wool. Hidden side adjusters and a clean drape from waist to hem.',
+    materials:'82% wool · 16% polyamide · 2% elastane' },
+  { id:5, silhouette:'dress', name:'Linen-blend column dress', brand:'Casa Lumen', price:99, mrp:139, rating:4.6, reviews:988, sale:true,
+    bg:['#E8D5D0','#C9A8A0','#9C7670'],
+    images:[['#E8D5D0','#C9A8A0','#9C7670'],['#C9A8A0','#9C7670','#6B504A'],['#F0DDD8','#D6B5AC','#9C7670'],['#9C7670','#6B504A','#3E2E2A']],
+    description:'A long-line column dress in midweight linen blend. Square neckline, subtle ruching at the bust, side slits.',
+    materials:'68% linen · 32% viscose' },
+  { id:6, silhouette:'knit', name:'Ribbed merino crew knit', brand:'Rua Studio', price:65, rating:4.9, reviews:3210, sale:false,
+    bg:['#C5C9BD','#9DA396','#6F7768'],
+    images:[['#C5C9BD','#9DA396','#6F7768'],['#9DA396','#6F7768','#4A5345'],['#D4D8CC','#A8AE9F','#6F7768'],['#6F7768','#4A5345','#2A2F28']],
+    description:'A fine-gauge merino crew with ribbed cuffs and hem. Lightweight enough for spring, warm enough for the office.',
+    materials:'100% extra-fine merino · Mulesing-free' },
+  { id:7, silhouette:'glasses', name:'Polarised acetate sunglasses', brand:'Vision Originals', price:95, mrp:140, rating:4.6, reviews:1872, sale:true,
+    bg:['#3A3A38','#1F1F1E','#0A0A0A'],
+    images:[['#3A3A38','#1F1F1E','#0A0A0A'],['#5A5A56','#2A2A28','#0E0E0C'],['#1F1F1E','#0A0A0A','#000000'],['#3A3A38','#2A2A28','#1F1F1E']],
+    description:'Hand-cut Italian acetate frames with category-3 polarised lenses. UV400 protection, riveted hinges.',
+    materials:'Italian Mazzucchelli acetate · CR-39 polarised lenses' },
+  { id:8, silhouette:'blazer', name:'Tailored single-breasted blazer', brand:'Hojo Atelier', price:165, rating:4.7, reviews:612, sale:false,
+    bg:['#D6D3CE','#A8A29E','#766F66'],
+    images:[['#D6D3CE','#A8A29E','#766F66'],['#A8A29E','#766F66','#4D473F'],['#E0DDD8','#B6B0AB','#766F66'],['#766F66','#4D473F','#2E2A24']],
+    description:'A clean single-breasted blazer in stretch wool. Half-canvassed, two-button closure, soft-padded shoulder.',
+    materials:'Half-canvas construction · 95% wool · 5% elastane' },
+  { id:9, photo:'img/iphone.png', name:'Apple iPhone 12 Pro (128 GB, Graphite)', brand:'Apple', price:549, mrp:999, rating:4.8, reviews:12840, sale:true,
+    detailsLabel:'Specifications',
+    bg:['#3f3f46','#27272a','#18181b'],
+    images:[['#3f3f46','#27272a','#18181b'],['#52525b','#3f3f46','#27272a']],
+    description:'Triple 12 MP camera system (Ultra Wide, Wide, Telephoto) with Night mode and a LiDAR scanner for depth, low-light portraits, and AR. Ceramic Shield front glass, flat-edge stainless steel frame, and MagSafe accessories.',
+    materials:'6.1-inch Super Retina XDR · A14 Bionic · 5G · Graphite finish' },
+  { id:10, photo:'img/laptop.png', name:'Apple MacBook Air (13-inch)', brand:'Apple', price:999, rating:4.9, reviews:8420, sale:false,
+    detailsLabel:'Specifications',
+    bg:['#d4d4d8','#a1a1aa','#71717a'],
+    images:[['#d4d4d8','#a1a1aa','#71717a'],['#e4e4e7','#d4d4d8','#a1a1aa']],
+    description:'Thin, light aluminum wedge with a brilliant Retina display, backlit Magic Keyboard, and large Force Touch trackpad. Built for work, study, and everyday creativity with long battery life in a bag-friendly form factor.',
+    materials:'Apple Silicon · Touch ID · FaceTime HD camera · Thunderbolt / USB 4' },
+  { id:11, photo:'img/headphone.png', name:'Sony WH-CH720N Noise Canceling Headphones', brand:'Sony', price:149, rating:4.6, reviews:3890, sale:false,
+    detailsLabel:'Specifications',
+    bg:['#171717','#262626','#404040'],
+    images:[['#171717','#262626','#404040'],['#262626','#404040','#525252']],
+    description:'Lightweight over-ear wireless headphones with Dual Noise Sensor technology and Sony\'s Integrated Processor V1 for strong noise canceling and clearer calls. Up to 35 hours playback; about 1 hour of use from a 3-minute quick charge.',
+    materials:'Multipoint connection · On-cup controls · Voice assistant compatible' },
+  { id:12, photo:'img/camera.png', name:'Canon EOS 80D with 18-135mm IS USM lens', brand:'Canon', price:899, rating:4.7, reviews:2156, sale:false,
+    detailsLabel:'Specifications',
+    bg:['#1c1917','#292524','#44403c'],
+    images:[['#1c1917','#292524','#44403c'],['#292524','#44403c','#57534e']],
+    description:'24.2 MP APS-C CMOS sensor, 45 all cross-type AF points, and Dual Pixel CMOS AF for confident stills and video. Includes the versatile EF-S 18-135mm f/3.5-5.6 IS USM zoom with Nano USM focusing and built-in stabilizer.',
+    materials:'Full HD 60p · Vari-angle touchscreen · Wi-Fi / NFC' },
+];
+
+/** Store floor map for indoor navigation popup (search location pin). */
+function getIndoorLocationForProduct(p) {
+  if (!p) return { category:'—', section:'—', row:'—', cabin:'—' };
+  const id = p.id;
+  if (id === 9) return { category:'Electronics', section:'R1 - Mobiles', row:'1', cabin:'S-001' };
+  if (id === 10) return { category:'Electronics', section:'R3 - Tech', row:'3', cabin:'S-013' };
+  if (id === 11) return { category:'Electronics', section:'R3 - Tech', row:'2', cabin:'S-008' };
+  if (id === 12) return { category:'Electronics', section:'R3 - Tech', row:'4', cabin:'S-015' };
+  if (id === 3 || id === 7) return { category:'Beauty', section:'R4 - Beauty', row:'4', cabin:'S-020' };
+  if (id === 2) return { category:'Fashion', section:'R2 - Fashion', row:'2', cabin:'S-018' };
+  if ([1, 4, 5, 6, 8].includes(id)) return { category:'Fashion', section:'R2 - Fashion', row:String((id % 3) + 1), cabin:`S-${String(10 + id).padStart(3, '0')}` };
+  return { category:'Fashion', section:'R2 - Fashion', row:'2', cabin:'S-010' };
+}
+
+/* ──────── COLLECTIONS ──────── */
+const COLLECTIONS = {
+  'new-season':   { title:'New season',  italic:'reset.',     eyebrow:'SS\u201926 — VOLUME ONE',
+    subtitle:'Refined essentials for warmer days. Considered cuts, considered cloth.',
+    hero:['#E8E1D6','#C9B89A'], banner:BANNER.newSeason, productIds:[1,3,5,6,8,2] },
+  'vision-studio':{ title:'Vision',      italic:'Studio.',    eyebrow:'MADE TO LAST',
+    subtitle:'Heritage pieces from our atelier in Porto. Built for decades, not seasons.',
+    hero:['#1F1F1F','#0A0A0A'], dark:true, banner:BANNER.visionStudio, productIds:[1,4,8,2] },
+  'edit-04':      { title:'Tones of',    italic:'spring.',    eyebrow:'EDIT N°04',
+    subtitle:'Soft palettes and clean silhouettes for the season ahead.',
+    hero:['#E8D5D0','#B89690'], banner:BANNER.springEdit, productIds:[5,1,3,6] },
+  'women':        { title:'Women.',      eyebrow:'DEPARTMENT',
+    subtitle:'Refined essentials and conversation pieces. For the wardrobe that lasts beyond the season.',
+    hero:['#E8D5D0','#C9A8A0'], banner:BANNER.women, productIds:[1,3,5,6,8] },
+  'men':          { title:'Men.',        eyebrow:'DEPARTMENT',
+    subtitle:'Quietly considered, made to wear well. Tailoring, knits and outerwear from our atelier.',
+    hero:['#1F1F1F','#0A0A0A'], dark:true, banner:BANNER.men, productIds:[4,8,7,1,2] },
+  'electronics':  { title:'Electronics.', eyebrow:'TECH & AUDIO',
+    subtitle:'Headphones, wearables, and everyday tech — curated like the rest of the store.',
+    hero:['#1E293B','#0F172A'], dark:true, banner:BANNER.electronics, productIds:[9,10,11,12] },
+  'beauty':       { title:'Beauty.',     eyebrow:'A SMALL EDIT',
+    subtitle:'Skin, scent and ritual. Considered for the everyday.',
+    hero:['#F0EDE7','#DDD6C7'], banner:BANNER.beauty, productIds:[3,7] },
+  'sale':         { title:'The sale.',   eyebrow:'MEMBERS\u2019 DAYS',
+    subtitle:'Up to 50% off the season. Three days only.',
+    hero:['#7F1D1D','#B91C1C'], dark:true, banner:BANNER.sale, productIds:[3,5,7,1] },
+};
+
+const HEROES = [
+  { eyebrow:'NEW SEASON',    title:'Quietly',    italic:'bold.',    cta:'Shop the edit',  slug:'new-season',    bg:['#E8E1D6','#C9B89A'], image:BANNER.newSeason },
+  { eyebrow:'VISION STUDIO', title:'Made',       italic:'to last.', cta:'Discover',        slug:'vision-studio', bg:['#1F1F1F','#0A0A0A'], dark:true, image:BANNER.visionStudio },
+  { eyebrow:'EDIT N°04',     title:'Tones of',   italic:'spring.',  cta:'Read the story',  slug:'__story',       bg:['#E8D5D0','#B89690'], image:BANNER.springEdit },
+];
+
+const CATEGORIES_GRID = [
+  { name:'Electronics', slug:'electronics', bg:['#1E293B','#0F172A'], dark:true,  image:BANNER.electronics },
+  { name:'Beauty',      slug:'beauty',      bg:['#F0EDE7','#DDD6C7'], dark:false, image:BANNER.beauty },
+  { name:'Women',       slug:'women',       bg:['#E8D5D0','#C9A8A0'], dark:false, image:BANNER.women },
+  { name:'Men',         slug:'men',         bg:['#1F1F1F','#0A0A0A'], dark:true,  image:BANNER.men },
+];
+
+/* ──────── THEMES ──────── */
+const themes = {
+  light:{ bg:'#F7F4EE',bg2:'#FFFFFF',surface:'#FFFFFF',
+    text:'#1A1815',textDim:'#7A736A',textMute:'#B5AEA3',
+    border:'rgba(26,24,21,0.08)',borderSolid:'#E5DFD3',borderStrong:'#1A1815',
+    primary:'#B91C1C',primarySoft:'#FBE5E5',
+    nav:'#FFFFFF',navBorder:'rgba(26,24,21,0.08)',success:'#0A6E3F' },
+  dark:{ bg:'#0E0D0B',bg2:'#16140F',surface:'#16140F',
+    text:'#F1ECDF',textDim:'#9B9485',textMute:'#5C564B',
+    border:'rgba(241,236,223,0.08)',borderSolid:'#2A271F',borderStrong:'#F1ECDF',
+    primary:'#EF4444',primarySoft:'#2A0F0F',
+    nav:'#0E0D0B',navBorder:'rgba(241,236,223,0.08)',success:'#52C497' },
+};
+
+/** Greeting from email local part, e.g. maria.silva@x → Maria */
+const firstNameFromEmail = (email) => {
+  const local = String(email || '').trim().split('@')[0] || '';
+  const tok = local.split(/[._+\-]/).filter(Boolean)[0] || '';
+  if (!tok) return 'Alex';
+  return tok.charAt(0).toUpperCase() + tok.slice(1).toLowerCase();
+};
+
+/* ──────── PRIMITIVES ──────── */
+const Eyebrow = ({ children, t, color, size }) => (
+  <span style={{ ...(size===8?T.eyebrowS:T.eyebrow), color:color||t.textDim, fontFamily:'Inter,sans-serif', display:'inline-block' }}>{children}</span>
+);
+
+/** Photo underlay + gradient fallback or scrim (`tint` overrides default light/dark veil). */
+const BannerBackdrop = ({ src, alt, gradient, dark, tint }) => {
+  const base = `linear-gradient(170deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`;
+  const over = tint || (dark
+    ? 'linear-gradient(170deg, rgba(6,5,4,0.62) 0%, rgba(6,5,4,0.18) 42%, rgba(6,5,4,0.82) 100%)'
+    : 'linear-gradient(170deg, rgba(255,252,246,0.32) 0%, rgba(26,24,21,0.08) 45%, rgba(26,24,21,0.38) 100%)');
+  return (
+    <>
+      {src ? (
+        <img src={src} alt={alt || ''} style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+      ) : null}
+      <div style={{ position:'absolute', inset:0, background: src ? over : base }}/>
+    </>
+  );
+};
+
+const ProductImage = ({ p, t, fill, showSale=true, gradient }) => {
+  const g = gradient || p.bg;
+  const photoSrc = p.photo || SILHOUETTE_IMG[p.silhouette];
+  const base = p.bg || g;
+  const isDark = !photoSrc && base[1] && parseInt(base[1].slice(1,3),16) < 80;
+  const silColor = isDark ? '#F1ECDF' : (base[2] || base[1]);
+  const silOpacity = isDark ? 0.30 : 0.32;
+  return (
+    <div style={{
+      width:'100%', height:fill?'100%':undefined, aspectRatio:fill?undefined:'3/4',
+      background: photoSrc ? t.bg2 : `linear-gradient(165deg, ${g[0]} 0%, ${g[1]} 50%, ${g[2]||g[1]} 100%)`,
+      position:'relative', overflow:'hidden', borderRadius:fill?0:r.md,
+    }}>
+      {photoSrc ? (
+        <img
+          src={photoSrc}
+          alt={p.name}
+          style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+        />
+      ) : null}
+      {!photoSrc && (
+        <>
+          <div style={{ position:'absolute', inset:0,
+            background:'radial-gradient(ellipse 60% 45% at 50% 25%, rgba(255,255,255,0.18) 0%, transparent 55%)' }}/>
+          {p.silhouette && <SilOverlay kind={p.silhouette} color={silColor} opacity={silOpacity}/>}
+          <div style={{ position:'absolute', inset:0, opacity:0.04, mixBlendMode:'overlay',
+            backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+        </>
+      )}
+      {photoSrc && (
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'radial-gradient(ellipse 65% 50% at 50% 20%, rgba(255,255,255,0.14) 0%, transparent 55%)' }}/>
+      )}
+      {p.sale && showSale && (
+        <div style={{ position:'absolute', top:10, right:10, ...T.eyebrowS, color:'#fff', background:t.primary, padding:'4px 8px', borderRadius:r.sm }}>SALE</div>
+      )}
+    </div>
+  );
+};
+
+/* ──────── IMAGE CAROUSEL ──────── */
+const ImageCarousel = ({ p, t }) => {
+  const [active, setActive] = useState(0);
+  const ref = useRef(null);
+  const onScroll = () => {
+    if (!ref.current) return;
+    const i = Math.round(ref.current.scrollLeft / ref.current.offsetWidth);
+    if (i !== active) setActive(i);
+  };
+  return (
+    <div style={{ position:'relative', width:'100%', aspectRatio:'3/4' }}>
+      <div ref={ref} onScroll={onScroll} className="no-scrollbar" style={{
+        width:'100%', height:'100%', overflowX:'auto', display:'flex',
+        scrollSnapType:'x mandatory', scrollBehavior:'smooth',
+      }}>
+        {p.images.map((g, i) => (
+          <div key={i} style={{ minWidth:'100%', height:'100%', scrollSnapAlign:'center' }}>
+            <ProductImage p={p} t={t} fill showSale={i===0} gradient={g}/>
+          </div>
+        ))}
+      </div>
+      <div style={{
+        position:'absolute', top:14, right:14,
+        background:'rgba(26,24,21,0.55)', backdropFilter:'blur(8px)', color:'#fff',
+        padding:'4px 9px', borderRadius:r.pill, ...T.eyebrowS, letterSpacing:1.4,
+      }}>{active+1} / {p.images.length}</div>
+      <div style={{ position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)',
+        display:'flex', gap:5, padding:'5px 10px', borderRadius:r.pill,
+        background:'rgba(255,255,255,0.7)', backdropFilter:'blur(8px)' }}>
+        {p.images.map((_, i) => (
+          <span key={i} style={{
+            width: i===active?16:5, height:5, borderRadius:r.pill,
+            background:'#1A1815', opacity:i===active?1:0.35, transition:'all .25s',
+          }}/>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ──────── QTY STEPPER ──────── */
+const QtyStepper = ({ qty, onMinus, onPlus, t }) => (
+  <div style={{
+    display:'inline-flex', alignItems:'center',
+    border:`1px solid ${t.borderSolid}`, borderRadius:r.pill,
+    background:t.bg, height:34,
+  }}>
+    <button onClick={onMinus} style={{
+      width:34, height:34, borderRadius:r.pill, border:'none', background:'transparent',
+      cursor:'pointer', color:t.text, display:'flex', alignItems:'center', justifyContent:'center',
+    }}><Minus size={12} strokeWidth={1.75}/></button>
+    <span style={{ minWidth:24, textAlign:'center', ...T.price, fontWeight:600 }}>{qty}</span>
+    <button onClick={onPlus} style={{
+      width:34, height:34, borderRadius:r.pill, border:'none', background:'transparent',
+      cursor:'pointer', color:t.text, display:'flex', alignItems:'center', justifyContent:'center',
+    }}><Plus size={12} strokeWidth={1.75}/></button>
+  </div>
+);
+
+/* ──────── TIER CARD ──────── */
+const TierCard = ({ tier, member, spend, compact=false, t }) => {
+  const remaining = tier.next ? tier.next - spend : 0;
+  const progress = tier.next ? Math.min(1, (spend - tier.threshold) / (tier.next - tier.threshold)) : 1;
+  return (
+    <div style={{
+      aspectRatio: compact?'2.5/1':'1.6/1', borderRadius:r.xl,
+      background:`linear-gradient(135deg, ${tier.gradient[0]} 0%, ${tier.gradient[1]} 50%, ${tier.gradient[2]} 100%)`,
+      color:tier.foil, position:'relative', overflow:'hidden',
+      padding: compact?'14px 16px':'20px',
+      display:'flex', flexDirection:'column', justifyContent:'space-between',
+    }}>
+      <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+        background:`radial-gradient(ellipse 60% 40% at 30% 20%, ${tier.foil}40 0%, transparent 50%)` }}/>
+      <div style={{ position:'absolute', inset:0, opacity:0.05, mixBlendMode:'overlay', pointerEvents:'none',
+        backgroundImage:'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%)' }}/>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'relative' }}>
+        <div>
+          <div style={{ ...T.eyebrowS, opacity:0.75 }}>VISION STORE MEMBER</div>
+          <div style={{ fontSize: compact?22:28, fontWeight:200, letterSpacing:-0.8, marginTop:6, lineHeight:1 }}>{tier.name}</div>
+        </div>
+        {!compact && <div style={{ ...T.wordmark, fontSize:10, letterSpacing:3, opacity:0.85 }}>VISION STORE<span style={{ opacity:0.6 }}>.</span></div>}
+      </div>
+      <div style={{ position:'relative' }}>
+        {!compact ? (
+          <>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, marginBottom:6, opacity:0.85 }}>
+              <span style={{ fontWeight:700, letterSpacing:1.4 }}>{(member||'A. MEHTA').toUpperCase()}</span>
+              <span style={{ fontWeight:600 }}>${spend?.toLocaleString()} YTD</span>
+            </div>
+            <div style={{ height:2, background:`${tier.foil}30`, position:'relative', overflow:'hidden', borderRadius:r.pill }}>
+              <div style={{ position:'absolute', inset:0, width:`${progress*100}%`, background:tier.foil, transition:'width .6s ease' }}/>
+            </div>
+            <div style={{ ...T.eyebrowS, letterSpacing:1.5, opacity:0.7, marginTop:6 }}>
+              {tier.next ? `$${remaining.toLocaleString()} TO ${TIERS[TIERS.findIndex(x=>x.id===tier.id)+1]?.name.toUpperCase()}` : 'TOP TIER · LIFETIME'}
+            </div>
+          </>
+        ) : (
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', fontSize:9, opacity:0.85 }}>
+            <span style={{ fontWeight:700, letterSpacing:1.4 }}>${spend?.toLocaleString()} YTD</span>
+            <span style={{ fontWeight:600 }}>{tier.next ? `$${remaining} to ${TIERS[TIERS.findIndex(x=>x.id===tier.id)+1]?.name}` : 'Top tier'}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ──────── MOBILE VIEWPORT (full height, phone-width column) ──────── */
+const MOBILE_MAX_W = 390;
+
+const PhoneFrame = ({ children, t }) => (
+  <div style={{
+    width:'100%', maxWidth:MOBILE_MAX_W, height:'100vh', margin:0,
+    background:t.bg, overflow:'hidden', position:'relative',
+    fontFamily:'Inter,-apple-system,sans-serif', color:t.text,
+    display:'flex', flexDirection:'column',
+  }}>
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', width:'100%', position:'relative' }}>
+      {children}
+    </div>
+  </div>
+);
+
+/* ──────── HEADER ──────── */
+const Header = ({ t, go, title, back='home', right }) => (
+  <div style={{ padding:'14px 20px', display:'flex', alignItems:'center', gap:14,
+    borderBottom:`1px solid ${t.border}`, background:t.bg, position:'relative', zIndex:5 }}>
+    <button onClick={() => go(back)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+      <ArrowLeft size={18} strokeWidth={1.5}/>
+    </button>
+    <div style={{ flex:1, ...T.button, fontSize:12, letterSpacing:1.6 }}>{title}</div>
+    {right}
+  </div>
+);
+
+/* ──────── DRAWER ──────── */
+const Drawer = ({ t, open, close, go, tier, spend, memberName, signOut }) => (
+  <>
+    <div onClick={close} style={{ position:'absolute', inset:0, background:'rgba(10,10,10,0.5)',
+      opacity:open?1:0, pointerEvents:open?'auto':'none', transition:'opacity .25s', zIndex:100 }}/>
+    <div style={{
+      position:'absolute', top:0, bottom:0, left:0, width:'78%', background:t.bg, zIndex:101,
+      transform:open?'translateX(0)':'translateX(-100%)', transition:'transform .3s cubic-bezier(.2,.8,.2,1)',
+      display:'flex', flexDirection:'column', boxShadow:open?'8px 0 30px rgba(0,0,0,0.15)':'none',
+      borderTopRightRadius:r.lg, borderBottomRightRadius:r.lg, overflow:'hidden',
+    }}>
+      <div style={{ padding:'20px 20px 16px', borderBottom:`1px solid ${t.border}`,
+        display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ ...T.wordmark }}>VISION STORE<span style={{ color:t.primary }}>.</span></div>
+        <button onClick={close} style={{ background:'none', border:'none', cursor:'pointer', color:t.text, padding:0, display:'flex' }}>
+          <X size={18} strokeWidth={1.5}/>
+        </button>
+      </div>
+      <div style={{ flex:1, overflowY:'auto' }}>
+        <div style={{ padding:16 }}>
+          <div onClick={() => { close(); go('tier'); }} style={{ cursor:'pointer' }}>
+            <TierCard tier={tier} member={memberName} spend={spend} compact t={t}/>
+          </div>
+        </div>
+        <div style={{ padding:'4px 0' }}>
+          <div style={{ padding:'8px 20px' }}><Eyebrow t={t}>Shop</Eyebrow></div>
+          {[
+            { l:'New in',      s:'new-season' }, { l:'Electronics', s:'electronics' }, { l:'Beauty', s:'beauty' },
+            { l:'Women',       s:'women' },     { l:'Men',         s:'men' },
+            { l:'Sale',    s:'sale', tag:'UP TO 50%' },
+          ].map(c => (
+            <button key={c.l} onClick={() => { close(); go('category', null, c.s); }} style={{
+              width:'100%', padding:'14px 20px', background:'transparent', border:'none', textAlign:'left',
+              display:'flex', justifyContent:'space-between', alignItems:'center',
+              ...T.body, fontWeight:400, color:t.text, fontFamily:'inherit', cursor:'pointer',
+            }}>
+              <span>{c.l}</span>
+              {c.tag && <span style={{ ...T.eyebrowS, fontSize:9, letterSpacing:1.2, color:'#fff', background:t.primary, padding:'2px 7px', borderRadius:r.sm }}>{c.tag}</span>}
+              <ChevronRight size={14} color={t.textDim}/>
+            </button>
+          ))}
+        </div>
+        <div style={{ height:1, background:t.border, margin:'8px 0' }}/>
+        <div style={{ padding:'4px 0' }}>
+          <div style={{ padding:'8px 20px' }}><Eyebrow t={t}>Account</Eyebrow></div>
+          {[
+            { l:'My orders', i:Package, go:'orders' },
+            { l:'Saved items', i:Heart, go:'wishlist' },
+            { l:'My bag', i:ShoppingBag, go:'cart' },
+            { l:'Membership & rewards', i:Award, go:'tier' },
+            { l:'Profile', i:User, go:'profile' },
+          ].map(row => (
+            <button key={row.l} onClick={() => { close(); go(row.go); }} style={{
+              width:'100%', padding:'12px 20px', background:'transparent', border:'none', textAlign:'left',
+              display:'flex', alignItems:'center', gap:14, ...T.bodySm, fontWeight:500, color:t.text, fontFamily:'inherit', cursor:'pointer',
+            }}>
+              <row.i size={15} strokeWidth={1.5}/>
+              <span style={{ flex:1 }}>{row.l}</span>
+              <ChevronRight size={13} color={t.textDim}/>
+            </button>
+          ))}
+        </div>
+        <div style={{ height:1, background:t.border, margin:'8px 0' }}/>
+        <div style={{ padding:'4px 0' }}>
+          {[{ l:'Find a store', i:Store },{ l:'Help & contact', i:MessageCircle },{ l:'Settings', i:Settings }].map(row => (
+            <button key={row.l} onClick={close} style={{
+              width:'100%', padding:'12px 20px', background:'transparent', border:'none', textAlign:'left',
+              display:'flex', alignItems:'center', gap:14, ...T.bodySm, fontWeight:500, color:t.text, fontFamily:'inherit', cursor:'pointer',
+            }}>
+              <row.i size={15} strokeWidth={1.5}/><span style={{ flex:1 }}>{row.l}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding:16, borderTop:`1px solid ${t.border}` }}>
+        <button onClick={() => { close(); signOut(); }} style={{
+          width:'100%', padding:'12px', background:'transparent', border:`1px solid ${t.borderStrong}`, color:t.text,
+          ...T.buttonSm, fontFamily:'inherit', cursor:'pointer', borderRadius:r.md,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        }}>
+          <LogOut size={13} strokeWidth={1.5}/> Sign out
+        </button>
+      </div>
+    </div>
+  </>
+);
+
+/* ──────── SPLASH ──────── */
+const SplashScreen = ({ t, go }) => (
+  <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+    <div style={{ flex:1, position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'absolute', inset:0, background:t.bg2 }}>
+        <BannerBackdrop
+          src={BANNER.splash}
+          alt=""
+          gradient={t===themes.dark ? ['#1F1B14','#0A0907'] : ['#E8E1D6','#C9B89A']}
+          dark={t===themes.dark}
+        />
+        <div style={{ position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(255,255,255,0.16) 0%, transparent 60%)' }}/>
+        <div style={{ position:'absolute', inset:0, opacity:0.04, mixBlendMode:'overlay',
+          backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+      </div>
+      <div style={{ position:'absolute', top:30, left:22, right:22, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ ...T.wordmark, color:t.text }}>VISION STORE<span style={{ color:t.primary }}>.</span></div>
+        <Globe size={15} color={t.text} strokeWidth={1.5}/>
+      </div>
+      <div style={{ position:'absolute', bottom:38, left:22, right:22, color:t.text }}>
+        <div style={{ ...T.eyebrowS, marginBottom:16 }}>SS&rsquo;26 — VOLUME ONE</div>
+        <div style={{ ...T.display1, fontSize:64, letterSpacing:-3 }}>
+          Quietly<br/><em style={{ fontStyle:'italic', fontWeight:300 }}>bold.</em>
+        </div>
+        <div style={{ marginTop:18, maxWidth:230, ...T.bodySm, color:t.textDim }}>
+          A considered wardrobe. Crafted in our atelier. Delivered to your door.
+        </div>
+      </div>
+    </div>
+    <div style={{ padding:'20px', background:t.bg, borderTop:`1px solid ${t.border}` }}>
+      <button onClick={() => go('login')} style={{
+        width:'100%', padding:'15px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+        ...T.button, fontFamily:'inherit', borderRadius:r.md,
+        display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+      }}>Get started <ArrowRight size={14} strokeWidth={1.5}/></button>
+      <div style={{ textAlign:'center', marginTop:16, ...T.caption, color:t.textDim }}>
+        Already a member?{' '}
+        <span onClick={() => go('login')} style={{ color:t.text, fontWeight:600, borderBottom:`1px solid ${t.text}`, cursor:'pointer', paddingBottom:1 }}>Sign in</span>
+      </div>
+    </div>
+  </div>
+);
+
+/* ──────── LOGIN ──────── */
+const UnderlineField = ({ t, label, value, type, trailing, onChange, placeholder, readOnly }) => (
+  <div style={{ marginBottom:22 }}>
+    <div style={{ ...T.eyebrow, color:t.textDim, marginBottom:10 }}>{label}</div>
+    <div style={{ display:'flex', alignItems:'center', gap:10, paddingBottom:11, borderBottom:`1px solid ${t.borderStrong}` }}>
+      <input
+        readOnly={readOnly === true || !onChange}
+        type={type||'text'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={String(label||'').toLowerCase().includes('email') ? 'email' : String(label||'').toLowerCase().includes('password') ? 'current-password' : undefined}
+        style={{
+          flex:1, border:'none', outline:'none', background:'transparent',
+          color:t.text, fontSize:14, fontFamily:'inherit', padding:0, fontWeight:500,
+        }}/>
+      {trailing}
+    </div>
+  </div>
+);
+
+const LoginScreen = ({ t, go, email, setEmail, onPasswordSignIn, onOAuthSignIn }) => {
+  const [show, setShow] = useState(false);
+  const [password, setPassword] = useState('');
+  return (
+    <div style={{ flex:1, padding:'24px 22px', display:'flex', flexDirection:'column', background:t.bg, overflowY:'auto', minHeight:0 }}>
+      <button onClick={() => go('splash')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, alignSelf:'flex-start', display:'flex' }}>
+        <X size={20} strokeWidth={1.5}/>
+      </button>
+      <div style={{ marginTop:40 }}>
+        <Eyebrow t={t}>Member</Eyebrow>
+        <div style={{ ...T.display3, fontSize:38, letterSpacing:-1.5, marginTop:12 }}>Sign in.</div>
+        <div style={{ ...T.body, color:t.textDim, marginTop:10 }}>Continue to your wardrobe, orders, and rewards.</div>
+      </div>
+      <div style={{ marginTop:36 }}>
+        <UnderlineField t={t} label="EMAIL" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"/>
+        <UnderlineField t={t} label="PASSWORD" value={password} onChange={e => setPassword(e.target.value)} type={show?'text':'password'} placeholder="••••••••"
+          trailing={<button type="button" onClick={() => setShow(!show)} style={{ background:'none', border:'none', cursor:'pointer', color:t.textDim, padding:0, display:'flex' }}>
+            {show ? <EyeOff size={15} strokeWidth={1.5}/> : <Eye size={15} strokeWidth={1.5}/>}
+          </button>}/>
+        <div style={{ textAlign:'right', marginTop:16 }}>
+          <span style={{ ...T.buttonSm, color:t.textDim, borderBottom:`1px solid ${t.textDim}`, paddingBottom:1, cursor:'pointer' }}>Forgot password</span>
+        </div>
+      </div>
+      <button type="button" onClick={() => onPasswordSignIn(email, password)} style={{
+        marginTop:28, padding:'15px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+        ...T.button, fontFamily:'inherit', borderRadius:r.md,
+        display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+      }}>Sign in <ArrowRight size={13} strokeWidth={1.5}/></button>
+      <div style={{ display:'flex', alignItems:'center', gap:12, margin:'32px 0 18px',
+        fontSize:9, color:t.textMute, letterSpacing:2, fontWeight:600 }}>
+        <span style={{ flex:1, height:1, background:t.border }}/> OR <span style={{ flex:1, height:1, background:t.border }}/>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {[{ i:Apple, l:'Continue with Apple' },{ i:Globe, l:'Continue with Google' }].map(s => (
+          <button key={s.l} type="button" onClick={() => onOAuthSignIn()} style={{
+            padding:'14px 16px', border:`1px solid ${t.borderSolid}`, background:'transparent',
+            color:t.text, ...T.buttonSm, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:10, fontFamily:'inherit', borderRadius:r.md,
+          }}><s.i size={14} strokeWidth={1.5}/> {s.l}</button>
+        ))}
+      </div>
+      <div style={{ marginTop:'auto', textAlign:'center', ...T.caption, color:t.textDim, paddingTop:28 }}>
+        New to Vision Store?{' '}
+        <span style={{ color:t.text, fontWeight:600, borderBottom:`1px solid ${t.text}`, cursor:'pointer', paddingBottom:1 }}>Become a member</span>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── HOME ──────── */
+const HomeScreen = ({ t, go, toggleWish, wishlist, cartCount, openDrawer, tier, spend }) => {
+  const [heroIdx, setHeroIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setHeroIdx(i => (i+1) % HEROES.length), 5000);
+    return () => clearInterval(id);
+  }, []);
+  const hero = HEROES[heroIdx];
+  const handleHeroCta = () => {
+    if (hero.slug === '__story') go('story');
+    else go('category', null, hero.slug);
+  };
+
+  return (
+    <div style={{ flex:1, minHeight:0, overflowY:'auto', paddingBottom:64, background:t.bg }}>
+      <div style={{ padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center',
+        position:'sticky', top:0, background:t.bg, zIndex:10, borderBottom:`1px solid ${t.border}` }}>
+        <button onClick={openDrawer} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+          <Menu size={19} strokeWidth={1.5}/>
+        </button>
+        <div style={{ ...T.wordmark }}>VISION STORE<span style={{ color:t.primary }}>.</span></div>
+        <div style={{ display:'flex', gap:14 }}>
+          <button onClick={() => go('search')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <Search size={17} strokeWidth={1.5}/>
+          </button>
+          <button onClick={() => go('cart')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, position:'relative', display:'flex' }}>
+            <ShoppingBag size={17} strokeWidth={1.5}/>
+            {cartCount > 0 && (
+              <span style={{ position:'absolute', top:-4, right:-6, fontSize:8, fontWeight:700, color:'#fff',
+                background:t.primary, minWidth:13, height:13, borderRadius:r.pill,
+                display:'flex', alignItems:'center', justifyContent:'center' }}>{cartCount}</span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ height:480, position:'relative', overflow:'hidden', background:t.bg2 }}>
+        <BannerBackdrop src={hero.image} alt="" gradient={hero.bg} dark={hero.dark}/>
+        <div style={{ position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 80% 50% at 60% 30%, rgba(255,255,255,0.18) 0%, transparent 60%)' }}/>
+        <div style={{ position:'absolute', inset:0, opacity:0.05, mixBlendMode:'overlay',
+          backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+        <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'58%', pointerEvents:'none',
+          background:'linear-gradient(to top, rgba(8,7,5,0.88) 0%, rgba(8,7,5,0.45) 50%, transparent 100%)' }}/>
+        <div style={{ position:'absolute', bottom:30, left:22, right:22, color:'#F1ECDF',
+          textShadow:'0 1px 4px rgba(0,0,0,0.55), 0 2px 20px rgba(0,0,0,0.35)' }}>
+          <div style={{ ...T.eyebrowS, marginBottom:16, color:'#F1ECDF' }}>{hero.eyebrow}</div>
+          <div style={{ ...T.display1, fontSize:64, letterSpacing:-3 }}>
+            {hero.title}<br/><em style={{ fontStyle:'italic', fontWeight:300 }}>{hero.italic}</em>
+          </div>
+          <button onClick={handleHeroCta} style={{
+            marginTop:24, background:'transparent', border:'none', color:'inherit', padding:0, cursor:'pointer',
+            ...T.buttonSm, fontFamily:'inherit', borderBottom:'1px solid #F1ECDF', paddingBottom:4,
+          }}>{hero.cta} →</button>
+        </div>
+        <div style={{ position:'absolute', bottom:14, right:22, display:'flex', gap:4 }}>
+          {HEROES.map((_,i) => (
+            <span key={i} style={{ width: i===heroIdx?18:4, height:1.5, background:'#F1ECDF',
+              opacity: i===heroIdx?1:0.45, transition:'all .4s', boxShadow:'0 1px 3px rgba(0,0,0,0.4)' }}/>
+          ))}
+        </div>
+      </div>
+
+      <div onClick={() => go('tier')} style={{
+        margin:'24px 20px', padding:'14px 16px', cursor:'pointer', borderRadius:r.lg,
+        background:`linear-gradient(95deg, ${tier.gradient[0]} 0%, ${tier.gradient[1]} 60%, ${tier.gradient[2]} 100%)`,
+        color:tier.foil, position:'relative', overflow:'hidden',
+      }}>
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:`radial-gradient(ellipse 60% 100% at 80% 50%, ${tier.foil}30 0%, transparent 60%)` }}/>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', position:'relative' }}>
+          <div>
+            <div style={{ ...T.eyebrowS, opacity:0.75 }}>VISION MEMBER</div>
+            <div style={{ fontSize:18, fontWeight:300, letterSpacing:-0.5, marginTop:3 }}>
+              {tier.name} · ${spend.toLocaleString()}
+            </div>
+          </div>
+          <ArrowRight size={16} strokeWidth={1.5}/>
+        </div>
+        {tier.next && (
+          <div style={{ marginTop:10, position:'relative' }}>
+            <div style={{ height:1.5, background:`${tier.foil}30`, borderRadius:r.pill }}>
+              <div style={{ height:'100%', width:`${Math.min(1, (spend - tier.threshold) / (tier.next - tier.threshold))*100}%`,
+                background:tier.foil, borderRadius:r.pill }}/>
+            </div>
+            <div style={{ ...T.eyebrowS, letterSpacing:1.4, opacity:0.75, marginTop:6 }}>
+              ${(tier.next - spend).toLocaleString()} TO {TIERS[TIERS.findIndex(x => x.id===tier.id)+1].name.toUpperCase()}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* QUICK BROWSE */}
+      <div style={{ padding:'24px 20px 4px' }}>
+        <div style={{ marginBottom:14 }}><Eyebrow t={t}>Quick browse</Eyebrow></div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:6 }}>
+          {[
+            { i:Sparkles,  l:'New',     s:'Arrivals', slug:'new-season' },
+            { i:Package,   l:'Back in', s:'Stock',    slug:'new-season' },
+            { i:Sun,       l:'Just',    s:'In',       slug:'new-season' },
+            { i:Award,     l:'Best',    s:'Sellers',  slug:'new-season' },
+            { i:Clock,     l:'Limited', s:'Offer',    slug:'sale' },
+          ].map(q => (
+            <button key={q.l} onClick={() => go('category', null, q.slug)} style={{
+              aspectRatio:'1/1.05', background:t.bg2, border:`1px solid ${t.border}`, borderRadius:r.md,
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+              cursor:'pointer', padding:6, fontFamily:'inherit', color:t.text,
+            }}>
+              <q.i size={17} strokeWidth={1.5}/>
+              <div style={{ textAlign:'center', lineHeight:1.25 }}>
+                <div style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.3 }}>{q.l}</div>
+                <div style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.3 }}>{q.s}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:'24px 20px 4px' }}>
+        <div style={{ marginBottom:16 }}><Eyebrow t={t}>Departments</Eyebrow></div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          {CATEGORIES_GRID.map(c => (
+            <button key={c.name} onClick={() => go('category', null, c.slug)} style={{
+              aspectRatio:'1/1.25', position:'relative', overflow:'hidden', cursor:'pointer',
+              background:t.bg2,
+              border:'none', padding:0, fontFamily:'inherit', textAlign:'left', borderRadius:r.md,
+            }}>
+              <BannerBackdrop src={c.image} alt="" gradient={c.bg} dark={c.dark}/>
+              <div style={{ position:'absolute', inset:0,
+                background:'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(255,255,255,0.15) 0%, transparent 60%)' }}/>
+              <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'52%', pointerEvents:'none',
+                background:'linear-gradient(to top, rgba(8,7,5,0.88) 0%, rgba(8,7,5,0.5) 48%, transparent 100%)' }}/>
+              <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:16, color:'#F1ECDF',
+                textShadow:'0 1px 3px rgba(0,0,0,0.55), 0 2px 16px rgba(0,0,0,0.35)' }}>
+                <div style={{ ...T.display4, fontSize:22, letterSpacing:-0.5, lineHeight:1 }}>{c.name}</div>
+                <div style={{ ...T.eyebrowS, fontSize:9, marginTop:6, opacity:0.9, color:'#F1ECDF' }}>SHOP →</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:'40px 0 4px' }}>
+        <div style={{ padding:'0 20px', display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:18 }}>
+          <div>
+            <Eyebrow t={t}>The edit</Eyebrow>
+            <div style={{ ...T.display4, marginTop:6 }}>New this week</div>
+          </div>
+          <button onClick={() => go('category', null, 'new-season')} style={{
+            background:'none', border:'none', padding:0, cursor:'pointer',
+            ...T.buttonSm, color:t.textDim, fontFamily:'inherit',
+          }}>See all</button>
+        </div>
+        <div style={{ display:'flex', gap:10, padding:'0 20px', overflowX:'auto' }} className="no-scrollbar">
+          {PRODUCTS.slice(0,5).map(p => (
+            <div key={p.id} onClick={() => go('product', p)} style={{ minWidth:158, cursor:'pointer' }}>
+              <div style={{ width:158, height:211 }}><ProductImage p={p} t={t} fill/></div>
+              <div style={{ marginTop:10 }}>
+                <div style={{ ...T.eyebrowS, color:t.textDim, fontSize:9, letterSpacing:1.2 }}>{p.brand}</div>
+                <div style={{ ...T.bodySm, marginTop:4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical' }}>{p.name}</div>
+                <div style={{ ...T.price, marginTop:4, color: p.sale?t.primary:t.text }}>
+                  ${p.price}{p.mrp && <span style={{ marginLeft:6, color:t.textMute, textDecoration:'line-through', fontWeight:400 }}>${p.mrp}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div onClick={() => go('story')} style={{ marginTop:36, height:400, position:'relative', overflow:'hidden', cursor:'pointer',
+        background:t.bg2 }}>
+        <BannerBackdrop src={BANNER.story} alt="" gradient={['#2A2520','#0E0D0B']} dark />
+        <div style={{ position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 50% 35% at 30% 70%, rgba(185,28,28,0.16) 0%, transparent 60%)' }}/>
+        <div style={{ position:'absolute', top:36, left:22, right:22, color:'#F1ECDF' }}>
+          <div style={{ ...T.eyebrowS, color:t.primary }}>STORY N°04</div>
+          <div style={{ ...T.display2, marginTop:14, maxWidth:220 }}>
+            The art<br/>of <em style={{ fontStyle:'italic' }}>restraint.</em>
+          </div>
+        </div>
+        <div style={{ position:'absolute', bottom:32, left:22, right:22, color:'#F1ECDF' }}>
+          <div style={{ ...T.bodySm, opacity:0.7, maxWidth:240, marginBottom:18 }}>
+            How our atelier in Porto reimagined the everyday wardrobe — one essential at a time.
+          </div>
+          <span style={{ ...T.buttonSm, fontSize:11, letterSpacing:1.6, borderBottom:'1px solid #F1ECDF', paddingBottom:4 }}>Read the story</span>
+        </div>
+      </div>
+
+      {/* COLLECTIONS */}
+      <div style={{ padding:'40px 0 4px' }}>
+        <div style={{ padding:'0 20px', display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:18 }}>
+          <div>
+            <Eyebrow t={t}>Collections</Eyebrow>
+            <div style={{ ...T.display4, marginTop:6 }}>The atelier</div>
+          </div>
+          <button onClick={() => go('category', null, 'new-season')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', ...T.buttonSm, color:t.textDim, fontFamily:'inherit' }}>See all</button>
+        </div>
+        <div style={{ display:'flex', gap:10, padding:'0 20px', overflowX:'auto' }} className="no-scrollbar">
+          {[
+            { name:'The Linen',       sub:'collection.', bg:['#E8E1D6','#C5BAA0'], si:'dress',   slug:'new-season', image:BANNER.collLinen },
+            { name:'The Tailored',    sub:'collection.', bg:['#D6D3CE','#7E7770'], si:'blazer',  slug:'new-season', image:BANNER.collTailored },
+            { name:'The Silk',        sub:'collection.', bg:['#E8D5D0','#9C7670'], si:'knit',    slug:'new-season', image:BANNER.collSilk },
+            { name:'The Evening',     sub:'collection.', bg:['#1F1F1F','#0A0A0A'], si:'dress',   slug:'vision-studio', dark:true, image:BANNER.collEvening },
+            { name:'The Accessories', sub:'collection.', bg:['#A87E58','#4A341E'], si:'bag',     slug:'new-season',    dark:true, image:BANNER.collAccessories },
+          ].map(c => (
+            <button key={c.name} onClick={() => go('category', null, c.slug)} style={{
+              minWidth:160, aspectRatio:'3/4', position:'relative', overflow:'hidden', cursor:'pointer',
+              background:t.bg2,
+              border:'none', padding:0, fontFamily:'inherit', textAlign:'left', borderRadius:r.md,
+            }}>
+              <BannerBackdrop src={c.image} alt="" gradient={c.bg} dark={c.dark}/>
+              <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(255,255,255,0.12) 0%, transparent 60%)' }}/>
+              <div aria-hidden style={{ position:'absolute', top:0, left:0, right:0, height:'46%', pointerEvents:'none',
+                background:'linear-gradient(to bottom, rgba(8,7,5,0.82) 0%, rgba(8,7,5,0.42) 55%, transparent 100%)' }}/>
+              <SilOverlay kind={c.si} color='#F1ECDF' opacity={0.16} width="62%"/>
+              <div style={{ position:'absolute', top:14, left:14, right:14, color:'#F1ECDF',
+                textShadow:'0 1px 3px rgba(0,0,0,0.5), 0 2px 14px rgba(0,0,0,0.35)' }}>
+                <div style={{ fontSize:18, fontWeight:300, letterSpacing:-0.5, lineHeight:1.05 }}>
+                  {c.name}<br/><em style={{ fontStyle:'italic' }}>{c.sub}</em>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* PROMOS */}
+      <div style={{ padding:'36px 0 4px' }}>
+        <div style={{ padding:'0 20px', marginBottom:14 }}><Eyebrow t={t}>For you</Eyebrow></div>
+        <div style={{ display:'flex', gap:10, padding:'0 20px', overflowX:'auto' }} className="no-scrollbar">
+          {[
+            { eyebrow:'SUMMER SALE',  title:'Up to 30%', italic:'off.',       bg:['#1A2E22','#0A1812'], si:'leaf', dark:true,  slug:'sale', image:BANNER.promoSummer },
+            { eyebrow:'BACK IN',      title:'Restocked', italic:'and ready.', bg:['#2F3B33','#1F261F'], si:'bag',  dark:true,  slug:'new-season', image:BANNER.promoStock },
+            { eyebrow:'MEMBER OFFER', title:'Members',   italic:'get more.',  bg:['#3D0E0E','#1C0707'], si:'card', dark:true,  slug:'sale', image:BANNER.promoMember },
+            { eyebrow:'FREE',         title:'Delivery',  italic:'on us.',     bg:['#E8E1D6','#C9B89A'], si:'gift',             slug:'new-season', image:BANNER.promoDelivery },
+          ].map(pr => (
+            <button key={pr.eyebrow} onClick={() => go('category', null, pr.slug)} style={{
+              minWidth:200, aspectRatio:'5/4', position:'relative', overflow:'hidden', cursor:'pointer',
+              background:t.bg2,
+              border:'none', padding:0, fontFamily:'inherit', textAlign:'left', borderRadius:r.md,
+            }}>
+              <BannerBackdrop src={pr.image} alt="" gradient={pr.bg} dark={pr.dark}/>
+              <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 60% 50% at 80% 20%, rgba(255,255,255,0.12) 0%, transparent 60%)' }}/>
+              <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'58%', pointerEvents:'none',
+                background:'linear-gradient(to top, rgba(8,7,5,0.9) 0%, rgba(8,7,5,0.5) 50%, transparent 100%)' }}/>
+              <SilOverlay kind={pr.si} color='#F1ECDF' opacity={0.14} width="58%"/>
+              <div style={{ position:'absolute', bottom:16, left:16, right:16, color:'#F1ECDF',
+                textShadow:'0 1px 3px rgba(0,0,0,0.55), 0 2px 16px rgba(0,0,0,0.35)' }}>
+                <div style={{ ...T.eyebrowS, opacity:0.92, marginBottom:6, color:'#F1ECDF' }}>{pr.eyebrow}</div>
+                <div style={{ fontSize:22, fontWeight:200, letterSpacing:-0.7, lineHeight:1 }}>
+                  {pr.title} <em style={{ fontStyle:'italic', fontWeight:300 }}>{pr.italic}</em>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:'32px 20px 24px' }}>
+        <div onClick={() => go('category', null, 'sale')} style={{
+          height:380, position:'relative', overflow:'hidden', cursor:'pointer', borderRadius:r.lg,
+          background:'linear-gradient(180deg, #4A0E0E 0%, #7F1D1D 30%, #B91C1C 60%, #5A0F0F 100%)',
+        }}>
+          <div style={{ position:'absolute', inset:14, border:'1px solid rgba(252,165,165,0.28)', borderRadius:r.md, pointerEvents:'none' }}/>
+          <div style={{ position:'absolute', inset:0,
+            background:'radial-gradient(ellipse 70% 50% at 50% 35%, rgba(252,165,165,0.18) 0%, transparent 60%)' }}/>
+          <div style={{ position:'absolute', inset:0, opacity:0.06, mixBlendMode:'overlay',
+            backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+          <div style={{ position:'absolute', inset:0, padding:'34px 28px',
+            display:'flex', flexDirection:'column', justifyContent:'space-between', alignItems:'center', textAlign:'center', color:'#fff' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:14, opacity:0.9 }}>
+              <span style={{ width:28, height:1, background:'#FCA5A5' }}/>
+              <span style={{ ...T.eyebrowS, color:'#FCA5A5', letterSpacing:3 }}>MEMBERS&rsquo; DAYS</span>
+              <span style={{ width:28, height:1, background:'#FCA5A5' }}/>
+            </div>
+            <div>
+              <div style={{ fontSize:54, fontWeight:200, letterSpacing:-2, lineHeight:0.95 }}>
+                Up to<br/><em style={{ fontStyle:'italic', fontWeight:300 }}>50% off.</em>
+              </div>
+              <div style={{ marginTop:18, ...T.bodySm, opacity:0.85, maxWidth:230, marginInline:'auto' }}>
+                The full season — privately previewed for members. Three days only.
+              </div>
+            </div>
+            <button style={{
+              background:'#fff', color:'#1A1815', border:'none', cursor:'pointer',
+              padding:'14px 32px', borderRadius:r.pill, ...T.buttonSm, fontFamily:'inherit',
+              display:'flex', alignItems:'center', gap:8,
+            }}>Shop the sale <ArrowRight size={13} strokeWidth={2}/></button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding:'0 20px 40px' }}>
+        <div style={{ marginBottom:18 }}>
+          <Eyebrow t={t}>Trending</Eyebrow>
+          <div style={{ ...T.display4, marginTop:6 }}>Most loved</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {PRODUCTS.slice(2,8).map(p => (
+            <ProductCard key={p.id} p={p} t={t} go={go} toggleWish={toggleWish} wished={wishlist.has(p.id)}/>
+          ))}
+        </div>
+      </div>
+
+      {/* SEASONAL EVENTS */}
+      <div style={{ padding:'8px 0 40px' }}>
+        <div style={{ padding:'0 20px', marginBottom:14 }}><Eyebrow t={t}>Seasonal edits</Eyebrow></div>
+        <div style={{ display:'flex', gap:10, padding:'0 20px', overflowX:'auto' }} className="no-scrollbar">
+          {[
+            { eyebrow:'EID EDIT',     title:'Celebrate',  italic:'in style.',  bg:['#1B2438','#0E1424'], dark:true, slug:'new-season', image:BANNER.eventEid },
+            { eyebrow:"MOTHER\u2019S DAY", title:'Thoughtful', italic:'gifts.',      bg:['#E8C9C0','#C49890'],            slug:'new-season', image:BANNER.eventMothers },
+            { eyebrow:'WEDDING EDIT', title:'For every',  italic:'occasion.',  bg:['#E5C9A7','#C4A176'],            slug:'new-season', image:BANNER.eventWedding },
+          ].map(ev => (
+            <button key={ev.eyebrow} onClick={() => go('category', null, ev.slug)} style={{
+              minWidth:200, aspectRatio:'5/6', position:'relative', overflow:'hidden', cursor:'pointer',
+              background:t.bg2,
+              border:'none', padding:0, fontFamily:'inherit', textAlign:'left', borderRadius:r.md,
+            }}>
+              <BannerBackdrop src={ev.image} alt="" gradient={ev.bg} dark={ev.dark}/>
+              <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 70% 50% at 50% 25%, rgba(255,255,255,0.1) 0%, transparent 60%)' }}/>
+              <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'55%', pointerEvents:'none',
+                background:'linear-gradient(to top, rgba(8,7,5,0.92) 0%, rgba(8,7,5,0.55) 45%, transparent 100%)' }}/>
+              <div style={{ position:'absolute', bottom:18, left:18, right:18, color:'#F1ECDF',
+                textShadow:'0 1px 3px rgba(0,0,0,0.6), 0 2px 18px rgba(0,0,0,0.4)' }}>
+                <div style={{ ...T.eyebrowS, opacity:0.9, marginBottom:6, color:'#F1ECDF' }}>{ev.eyebrow}</div>
+                <div style={{ fontSize:22, fontWeight:200, letterSpacing:-0.7, lineHeight:1 }}>
+                  {ev.title}<br/><em style={{ fontStyle:'italic', fontWeight:300 }}>{ev.italic}</em>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProductCard = ({ p, t, go, toggleWish, wished }) => (
+  <div onClick={() => go('product', p)} style={{ cursor:'pointer' }}>
+    <div style={{ position:'relative' }}>
+      <ProductImage p={p} t={t}/>
+      <button onClick={(e) => { e.stopPropagation(); toggleWish(p.id); }} style={{
+        position:'absolute', top:8, left:8,
+        background:'rgba(255,255,255,0.85)', backdropFilter:'blur(6px)',
+        border:'none', cursor:'pointer', padding:5, color:'#1A1815',
+        width:28, height:28, borderRadius:r.pill,
+        display:'flex', alignItems:'center', justifyContent:'center',
+      }}><Heart size={13} fill={wished?'#1A1815':'none'} strokeWidth={1.5}/></button>
+    </div>
+    <div style={{ marginTop:10 }}>
+      <div style={{ ...T.eyebrowS, color:t.textDim, fontSize:9, letterSpacing:1.2 }}>{p.brand}</div>
+      <div style={{ ...T.bodySm, marginTop:4,
+        overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', minHeight:36 }}>{p.name}</div>
+      <div style={{ ...T.price, marginTop:4, color: p.sale?t.primary:t.text }}>
+        ${p.price}{p.mrp && <span style={{ marginLeft:6, color:t.textMute, textDecoration:'line-through', fontWeight:400 }}>${p.mrp}</span>}
+      </div>
+    </div>
+  </div>
+);
+
+/* ──────── CATEGORY ──────── */
+const SORTS = ['Featured', 'Low to high', 'High to low', 'Top rated'];
+const CategoryScreen = ({ t, go, slug, toggleWish, wishlist }) => {
+  const c = COLLECTIONS[slug] || COLLECTIONS['new-season'];
+  const baseItems = c.productIds.map(id => PRODUCTS.find(p => p.id === id)).filter(Boolean);
+  const [sortIdx, setSortIdx] = useState(0);
+  const [saleOnly, setSaleOnly] = useState(false);
+  const filtered = saleOnly ? baseItems.filter(p => p.sale) : baseItems;
+  const items = [...filtered].sort((a,b) => {
+    if (sortIdx === 1) return a.price - b.price;
+    if (sortIdx === 2) return b.price - a.price;
+    if (sortIdx === 3) return b.rating - a.rating;
+    return 0;
+  });
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <div style={{ position:'sticky', top:0, zIndex:10, background:t.bg }}>
+        <div style={{ padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <button onClick={() => go('home')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <ArrowLeft size={18} strokeWidth={1.5}/>
+          </button>
+          <div style={{ ...T.wordmark, fontSize:13, letterSpacing:3 }}>VISION STORE<span style={{ color:t.primary }}>.</span></div>
+          <button onClick={() => go('search')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <Search size={17} strokeWidth={1.5}/>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:30 }}>
+        <div style={{ height:300, position:'relative', overflow:'hidden', background:t.bg2 }}>
+          <BannerBackdrop src={c.banner} alt="" gradient={c.hero} dark={c.dark}/>
+          <div style={{ position:'absolute', inset:0,
+            background:'radial-gradient(ellipse 70% 50% at 50% 35%, rgba(255,255,255,0.16) 0%, transparent 60%)' }}/>
+          <div style={{ position:'absolute', inset:0, opacity:0.05, mixBlendMode:'overlay',
+            backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+          <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'62%', pointerEvents:'none',
+            background:'linear-gradient(to top, rgba(8,7,5,0.9) 0%, rgba(8,7,5,0.48) 48%, transparent 100%)' }}/>
+          <div style={{ position:'absolute', bottom:24, left:22, right:22, color:'#F1ECDF',
+            textShadow:'0 1px 3px rgba(0,0,0,0.55), 0 2px 16px rgba(0,0,0,0.35)' }}>
+            <div style={{ ...T.eyebrowS, opacity:0.92, color:'#F1ECDF' }}>{c.eyebrow}</div>
+            <div style={{ ...T.display2, fontSize:44, letterSpacing:-1.8, marginTop:12 }}>
+              {c.title}{c.italic && <><br/><em style={{ fontStyle:'italic', fontWeight:300 }}>{c.italic}</em></>}
+            </div>
+            <div style={{ ...T.bodySm, marginTop:14, opacity:0.92, maxWidth:280, color:'#F1ECDF' }}>{c.subtitle}</div>
+          </div>
+        </div>
+
+        <div style={{ padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'center',
+          borderBottom:`1px solid ${t.border}`, background:t.bg }}>
+          <div style={{ ...T.caption, color:t.textDim, fontWeight:500 }}>{items.length} items</div>
+          <div style={{ display:'flex', gap:14 }}>
+            <button onClick={() => setSortIdx(i => (i+1) % SORTS.length)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text,
+              ...T.buttonSm, fontFamily:'inherit', display:'flex', alignItems:'center', gap:5 }}>
+              <SlidersHorizontal size={12} strokeWidth={1.5}/> {SORTS[sortIdx]}
+            </button>
+            <button onClick={() => setSaleOnly(s => !s)} style={{ background:'none', border:'none', padding:0, cursor:'pointer',
+              ...T.buttonSm, fontFamily:'inherit', display:'flex', alignItems:'center', gap:5,
+              color: saleOnly ? t.primary : t.text }}>
+              <Filter size={12} strokeWidth={1.5}/> {saleOnly ? 'Sale ✓' : 'Filter'}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding:'20px 20px 40px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {items.map(p => (
+            <ProductCard key={p.id} p={p} t={t} go={go} toggleWish={toggleWish} wished={wishlist.has(p.id)}/>
+          ))}
+          {items.length === 0 && (
+            <div style={{ gridColumn:'1/-1', padding:'40px 0', textAlign:'center', ...T.bodySm, color:t.textDim }}>
+              No items match these filters.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── STORY ──────── */
+const StoryScreen = ({ t, go, toggleWish, wishlist }) => {
+  const featured = [PRODUCTS[0], PRODUCTS[5], PRODUCTS[7], PRODUCTS[2]];
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <div style={{ position:'sticky', top:0, zIndex:10, background:t.bg, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <button onClick={() => go('home')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <ArrowLeft size={18} strokeWidth={1.5}/>
+          </button>
+          <div style={{ ...T.eyebrowS }}>STORY N°04</div>
+          <button style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <Share2 size={16} strokeWidth={1.5}/>
+          </button>
+        </div>
+      </div>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:30 }}>
+        <div style={{ height:420, position:'relative', overflow:'hidden', background:t.bg2 }}>
+          <BannerBackdrop src={BANNER.story} alt="" gradient={['#2A2520','#0E0D0B']} dark />
+          <div style={{ position:'absolute', inset:0,
+            background:'radial-gradient(ellipse 50% 40% at 30% 65%, rgba(185,28,28,0.20) 0%, transparent 60%)' }}/>
+          <div style={{ position:'absolute', inset:0, opacity:0.06, mixBlendMode:'overlay',
+            backgroundImage:'radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px)', backgroundSize:'3px 3px' }}/>
+          <div style={{ position:'absolute', top:40, left:22, right:22, color:'#F1ECDF' }}>
+            <div style={{ ...T.eyebrowS, color:t.primary }}>STORY N°04 · NEW SEASON</div>
+            <div style={{ ...T.display1, fontSize:48, letterSpacing:-2, marginTop:18 }}>
+              The art<br/>of <em style={{ fontStyle:'italic' }}>restraint.</em>
+            </div>
+          </div>
+          <div style={{ position:'absolute', bottom:28, left:22, right:22, color:'#F1ECDF' }}>
+            <div style={{ ...T.eyebrowS, opacity:0.7, marginBottom:8 }}>WORDS — MIRA SODHI</div>
+            <div style={{ ...T.caption, opacity:0.7, display:'flex', alignItems:'center', gap:10 }}>
+              <span>Photography by Lucien Frey</span>
+              <span style={{ width:3, height:3, borderRadius:r.pill, background:'#F1ECDF', opacity:0.5 }}/>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><Clock size={11} strokeWidth={1.5}/> 8 min</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding:'32px 24px 24px' }}>
+          <p style={{ ...T.body, fontSize:14, lineHeight:1.75, color:t.text, margin:0 }}>
+            There is a certain courage in subtraction. In an industry built on ornamentation, our atelier in Porto begins each season with a question that feels almost defiant: <em>what can we leave out?</em>
+          </p>
+          <p style={{ ...T.body, fontSize:14, lineHeight:1.75, color:t.text, marginTop:18 }}>
+            The answer, season after season, has been silhouettes that breathe, materials that age into themselves, and palettes drawn from the wall of the studio at six in the morning. Stone. Ash. Ochre. The particular cream of unbleached linen.
+          </p>
+
+          <div style={{ margin:'34px -8px 34px', padding:'24px 22px', borderLeft:`2px solid ${t.primary}` }}>
+            <div style={{ fontFamily:'Georgia, serif', fontStyle:'italic', fontSize:22, lineHeight:1.4, color:t.text, fontWeight:300, letterSpacing:-0.4 }}>
+              &ldquo;We are not designing for this season. We are designing for the wardrobe you will still reach for in five years.&rdquo;
+            </div>
+            <div style={{ ...T.eyebrowS, color:t.textDim, marginTop:14 }}>— ANA RIBEIRO, ATELIER DIRECTOR</div>
+          </div>
+
+          <p style={{ ...T.body, fontSize:14, lineHeight:1.75, color:t.text, margin:0 }}>
+            This idea — the long view — guides every decision. The buttons are corozo, not plastic. The seams are felled, not serged. The lining of the coat is a single piece of cupro, hand-set into the shoulder. None of it is visible. All of it matters.
+          </p>
+        </div>
+
+        <div style={{ height:280, margin:'8px 24px 32px', borderRadius:r.md, overflow:'hidden',
+          background:t.bg2, position:'relative' }}>
+          <BannerBackdrop src={BANNER.crafted} alt="" gradient={['#E8E1D6','#A89880']} dark={false} />
+          <div style={{ position:'absolute', inset:0,
+            background:'radial-gradient(ellipse 60% 45% at 50% 25%, rgba(255,255,255,0.20) 0%, transparent 55%)' }}/>
+          <div aria-hidden style={{ position:'absolute', bottom:0, left:0, right:0, height:'42%', pointerEvents:'none',
+            background:'linear-gradient(to top, rgba(8,7,5,0.82) 0%, rgba(8,7,5,0.35) 55%, transparent 100%)' }}/>
+          <div style={{ position:'absolute', bottom:14, left:16, right:16, ...T.eyebrowS, color:'#F1ECDF', opacity:0.92,
+            textShadow:'0 1px 3px rgba(0,0,0,0.5)' }}>
+            ATELIER VISION · PORTO · 2026
+          </div>
+        </div>
+
+        <div style={{ padding:'0 24px 28px' }}>
+          <p style={{ ...T.body, fontSize:14, lineHeight:1.75, color:t.text, margin:0 }}>
+            &ldquo;What you wear should disappear into the day,&rdquo; Ribeiro says, folding a coat back onto its hanger. &ldquo;It should not perform. It should arrive.&rdquo;
+          </p>
+        </div>
+
+        <div style={{ padding:'24px 20px 36px', borderTop:`1px solid ${t.border}` }}>
+          <Eyebrow t={t}>Shop the story</Eyebrow>
+          <div style={{ ...T.display4, marginTop:6, marginBottom:18 }}>The edit, in full</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            {featured.map(p => (
+              <ProductCard key={p.id} p={p} t={t} go={go} toggleWish={toggleWish} wished={wishlist.has(p.id)}/>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── SEARCH (+ indoor navigation popup on MapPin) ──────── */
+const IndoorNavPopup = ({ open, onClose, product, t, theme }) => {
+  if (!open) return null;
+  const loc = product ? getIndoorLocationForProduct(product) : null;
+  const title = product ? product.name : 'No product selected';
+  const sub = product ? 'Indoor Navigation Available' : 'Search for a product first, then tap the location pin.';
+  const overlayTint = theme === 'light' ? 'rgba(26,24,21,0.42)' : 'rgba(8,7,5,0.78)';
+  const panelShadow = theme === 'light'
+    ? '0 28px 90px rgba(26,24,21,0.14)'
+    : '0 40px 100px rgba(0,0,0,0.55)';
+  const pinShadow = theme === 'light'
+    ? `0 8px 28px ${t.primarySoft}`
+    : `0 8px 28px rgba(239,68,68,0.35)`;
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position:'fixed', inset:0, background:overlayTint, backdropFilter:'blur(14px)',
+        zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20,
+      }}/>
+      <div onClick={e => e.stopPropagation()} style={{
+        position:'fixed', left:'50%', top:'50%', transform:'translate(-50%,-50%)', zIndex:301,
+        width:'min(340px, calc(100% - 40px))',
+        background:t.surface, color:t.text,
+        borderRadius:28, padding:22, border:`1px solid ${t.borderSolid}`,
+        boxShadow:panelShadow,
+      }}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:18 }}>
+          <div style={{
+            width:52, height:52, borderRadius:14, flexShrink:0,
+            background:t.primary,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:pinShadow,
+          }}>
+            <MapPin size={22} color="#fff" strokeWidth={2.2}/>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:18, fontWeight:700, color:t.text, lineHeight:1.25, letterSpacing:-0.3 }}>{title}</div>
+            <div style={{ marginTop:6, fontSize:12, fontWeight:500, color: product ? t.primary : t.textDim, letterSpacing:0.2 }}>{sub}</div>
+          </div>
+          <button type="button" onClick={onClose} style={{
+            background:t.bg2, border:`1px solid ${t.borderSolid}`,
+            borderRadius:14, width:40, height:40, flexShrink:0, cursor:'pointer', color:t.text,
+            fontSize:18, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center',
+          }} aria-label="Close">×</button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {[
+            { k:'CATEGORY', v: loc ? loc.category : '—' },
+            { k:'SECTION', v: loc ? loc.section : '—' },
+            { k:'ROW', v: loc ? loc.row : '—' },
+            { k:'CABIN', v: loc ? loc.cabin : '—' },
+          ].map(cell => (
+            <div key={cell.k} style={{
+              background:t.bg2, borderRadius:14, padding:'12px 14px',
+              border:`1px solid ${t.border}`,
+            }}>
+              <div style={{ ...T.eyebrowS, fontSize:9, letterSpacing:1.6, color:t.textDim, marginBottom:6 }}>{cell.k}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:t.text, lineHeight:1.3 }}>{cell.v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+};
+
+const SearchScreen = ({ t, theme, go, toggleWish, wishlist }) => {
+  const [q, setQ] = useState('');
+  const [indoorOpen, setIndoorOpen] = useState(false);
+  const [indoorProduct, setIndoorProduct] = useState(null);
+  const ql = q.trim().toLowerCase();
+  const list = ql ? PRODUCTS.filter(p => p.name.toLowerCase().includes(ql)) : [];
+
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, background:t.bg, position:'relative' }}>
+      <div style={{ padding:'16px 20px', borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
+          <button type="button" onClick={() => go('home')} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:t.text, display:'flex' }}>
+            <X size={20} strokeWidth={1.5}/>
+          </button>
+          <div style={{ ...T.button, fontSize:12, letterSpacing:1.6 }}>Search</div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10, paddingBottom:12, borderBottom:`1.5px solid ${t.text}` }}>
+          <Search size={15} color={t.text} strokeWidth={1.5}/>
+          <input
+            autoFocus
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="What are you looking for?"
+            style={{ flex:1, border:'none', outline:'none', background:'transparent', color:t.text, fontSize:14, fontFamily:'inherit', fontWeight:400 }}
+          />
+          {q ? (
+            <button type="button" onClick={() => setQ('')} style={{ background:'none', border:'none', cursor:'pointer', color:t.textDim, padding:0, display:'flex' }} aria-label="Clear search">
+              <X size={14} strokeWidth={1.5}/>
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {!q.trim() ? (
+        <div style={{ flex:1, overflowY:'auto', minHeight:0, padding:'20px 20px 80px' }}>
+          <div style={{ marginBottom:28 }}>
+            <Eyebrow t={t}>Recent</Eyebrow>
+            <div style={{ marginTop:14 }}>
+              {['linen blazer','oversized coat','leather bag','merino knit'].map(s => (
+                <div key={s} onClick={() => setQ(s)} style={{
+                  padding:'14px 0', borderBottom:`1px solid ${t.border}`,
+                  display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer',
+                }}>
+                  <span style={{ ...T.body }}>{s}</span>
+                  <ArrowRight size={13} color={t.textDim} strokeWidth={1.5}/>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Eyebrow t={t}>Trending</Eyebrow>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:14 }}>
+              {['Electronics','Spring &rsquo;26','Wide-leg','Cashmere','SALE'].map(s => (
+                <span key={s} onClick={() => setQ(s)} style={{
+                  padding:'8px 14px', border:`1px solid ${t.borderStrong}`, borderRadius:r.pill,
+                  ...T.caption, fontWeight:500, cursor:'pointer',
+                }}>{s}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:80 }}>
+          <div style={{ padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:`1px solid ${t.border}` }}>
+            <span style={{ ...T.caption, color:t.textDim }}>{list.length} items</span>
+            <div style={{ display:'flex', gap:18 }}>
+              <span style={{ ...T.buttonSm }}>Sort</span>
+              <span style={{ ...T.buttonSm }}>Filter (2)</span>
+            </div>
+          </div>
+          <div style={{ padding:20, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            {list.map(p => (
+              <div key={p.id} style={{ position:'relative' }}>
+                <ProductCard p={p} t={t} go={go} toggleWish={toggleWish} wished={wishlist.has(p.id)}/>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setIndoorProduct(p); setIndoorOpen(true); }}
+                  title="In-store location"
+                  aria-label="In-store location"
+                  style={{
+                    position:'absolute', top:6, right:6, width:32, height:32, borderRadius:r.pill, zIndex:3,
+                    border:`1px solid ${t.borderSolid}`,
+                    background: theme === 'light' ? 'rgba(255,255,255,0.94)' : 'rgba(22,20,15,0.92)',
+                    backdropFilter:'blur(8px)',
+                    cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                    boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 14px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  <MapPin size={14} strokeWidth={2} color={t.primary}/>
+                </button>
+              </div>
+            ))}
+            {list.length === 0 && (
+              <div style={{ gridColumn:'1 / -1', textAlign:'center', padding:'36px 12px', ...T.bodySm, color:t.textDim }}>
+                No items match your search.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <IndoorNavPopup open={indoorOpen} onClose={() => setIndoorOpen(false)} product={indoorProduct} t={t} theme={theme}/>
+    </div>
+  );
+};
+
+/* ──────── PRODUCT ──────── */
+const ProductScreen = ({ t, go, goBack, product, addToCart, toggleWish, wished, tier }) => {
+  const p = product || PRODUCTS[0];
+  const [size, setSize] = useState(null);
+  const tierIdx = TIERS.findIndex(x => x.id === tier.id);
+  const memberDiscount = [0,5,10,15][tierIdx];
+  const finalPrice = memberDiscount ? Math.round(p.price * (1 - memberDiscount/100)) : p.price;
+
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:80 }}>
+        <div style={{ position:'relative' }}>
+          <ImageCarousel p={p} t={t}/>
+          <div style={{ position:'absolute', top:16, left:0, right:0, padding:'0 20px',
+            display:'flex', justifyContent:'space-between', alignItems:'center', zIndex:5 }}>
+            <button onClick={goBack} style={{
+              width:38, height:38, borderRadius:r.pill, border:'none',
+              background:'rgba(255,255,255,0.85)', backdropFilter:'blur(10px)', cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', color:'#1A1815',
+            }}><ArrowLeft size={16} strokeWidth={1.5}/></button>
+            <div style={{ display:'flex', gap:6 }}>
+              <button style={{
+                width:38, height:38, borderRadius:r.pill, border:'none',
+                background:'rgba(255,255,255,0.85)', backdropFilter:'blur(10px)', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', color:'#1A1815',
+              }}><Share2 size={15} strokeWidth={1.5}/></button>
+              <button onClick={() => toggleWish(p.id)} style={{
+                width:38, height:38, borderRadius:r.pill, border:'none',
+                background:'rgba(255,255,255,0.85)', backdropFilter:'blur(10px)', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', color:'#1A1815',
+              }}><Heart size={15} fill={wished?'#1A1815':'none'} strokeWidth={1.5}/></button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding:'24px 20px' }}>
+          <div style={{ ...T.eyebrow, color:t.textDim }}>{p.brand}</div>
+          <div style={{ ...T.display4, marginTop:10 }}>{p.name}</div>
+          <div style={{ marginTop:14, display:'flex', alignItems:'baseline', gap:10 }}>
+            <span style={{ ...T.priceL, color: p.sale?t.primary:t.text }}>${p.price}</span>
+            {p.mrp && (<>
+              <span style={{ ...T.bodySm, fontSize:14, color:t.textMute, textDecoration:'line-through' }}>${p.mrp}</span>
+              <span style={{ ...T.eyebrowS, color:t.primary }}>SAVE ${p.mrp-p.price}</span>
+            </>)}
+          </div>
+          <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:8 }}>
+            <Star size={12} fill={t.text} stroke={t.text}/>
+            <span style={{ ...T.caption, fontWeight:600 }}>{p.rating}</span>
+            <span style={{ ...T.caption, color:t.textDim }}>· {p.reviews?.toLocaleString()} reviews</span>
+          </div>
+
+          {memberDiscount > 0 && (
+            <div style={{
+              marginTop:18, padding:'12px 14px', borderRadius:r.md, position:'relative', overflow:'hidden',
+              background:`linear-gradient(95deg, ${tier.gradient[0]} 0%, ${tier.gradient[1]} 100%)`,
+              color:tier.foil, display:'flex', alignItems:'center', gap:10,
+            }}>
+              <div style={{ position:'absolute', inset:0,
+                background:`radial-gradient(ellipse 60% 100% at 80% 50%, ${tier.foil}30 0%, transparent 60%)` }}/>
+              <Award size={14} strokeWidth={1.5} style={{ position:'relative' }}/>
+              <div style={{ flex:1, position:'relative' }}>
+                <div style={{ ...T.eyebrowS, opacity:0.85 }}>{tier.name.toUpperCase()} MEMBER</div>
+                <div style={{ ...T.bodySm, marginTop:1 }}>{memberDiscount}% rewards · pay <strong>${finalPrice}</strong></div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ height:1, background:t.border, margin:'24px 0' }}/>
+
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
+              <Eyebrow t={t}>Colour — Stone</Eyebrow>
+              <span style={{ ...T.caption, color:t.textDim }}>3 available</span>
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              {[p.bg[0], p.bg[2], '#1F1F1F'].map((c,i) => (
+                <div key={c+i} style={{
+                  width:44, height:56, background:c, borderRadius:r.sm, cursor:'pointer',
+                  outline: i===0?`1.5px solid ${t.text}`:'none', outlineOffset:3,
+                }}/>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop:28 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
+              <Eyebrow t={t}>Size</Eyebrow>
+              <span style={{ ...T.buttonSm, color:t.textDim, borderBottom:`1px solid ${t.textDim}`, paddingBottom:1, cursor:'pointer' }}>Size guide</span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
+              {['XS','S','M','L','XL'].map((s,i) => (
+                <button key={s} onClick={() => setSize(s)} disabled={i===4} style={{
+                  padding:'13px 0', cursor:i===4?'not-allowed':'pointer', borderRadius:r.sm,
+                  background: size===s?t.text:'transparent',
+                  color: size===s?t.bg:(i===4?t.textMute:t.text),
+                  border:`1px solid ${size===s?t.text:t.borderSolid}`,
+                  ...T.bodySm, fontSize:12, fontWeight:600, letterSpacing:1,
+                  textDecoration:i===4?'line-through':'none', fontFamily:'inherit',
+                }}>{s}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop:28, padding:'16px 0', borderTop:`1px solid ${t.border}`, borderBottom:`1px solid ${t.border}` }}>
+            {[
+              { i:Truck, l:'Free delivery', sub:'Tomorrow before 4 PM' },
+              { i:Package, l:'Free returns', sub:'Within 30 days' },
+              { i:Shield, l:'2-year warranty', sub:'Quality guaranteed' },
+            ].map((it,idx) => (
+              <div key={idx} style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 0' }}>
+                <it.i size={15} color={t.text} strokeWidth={1.5}/>
+                <div style={{ flex:1, ...T.bodySm, fontWeight:500 }}>{it.l}</div>
+                <div style={{ ...T.caption, color:t.textDim }}>{it.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop:24 }}>
+            <Eyebrow t={t}>Description</Eyebrow>
+            <div style={{ ...T.body, marginTop:14, fontSize:13, lineHeight:1.7 }}>{p.description}</div>
+            <div style={{ marginTop:18 }}>
+              <Eyebrow t={t} size={8}>{p.detailsLabel || 'Materials'}</Eyebrow>
+              <div style={{ ...T.bodySm, marginTop:8, color:t.textDim }}>{p.materials}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        background:t.bg, borderTop:`1px solid ${t.border}`, padding:'12px 20px', display:'flex', gap:8 }}>
+        <button onClick={() => toggleWish(p.id)} style={{
+          width:50, height:48, border:`1px solid ${t.borderStrong}`, background:t.bg, color:t.text,
+          cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:r.md,
+        }}><Heart size={16} fill={wished?t.text:'none'} strokeWidth={1.5}/></button>
+        <button onClick={() => { addToCart(p); go('cart'); }} style={{
+          flex:1, background:t.text, color:t.bg, border:'none', cursor:'pointer',
+          ...T.button, fontFamily:'inherit', borderRadius:r.md,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        }}>Add to bag — ${memberDiscount?finalPrice:p.price}</button>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── CART ──────── */
+const CartScreen = ({ t, go, cart, setCart, tier }) => {
+  const update = (id, d) => setCart(c => c.map(i => i.id===id?{ ...i, qty:Math.max(0, i.qty+d) }:i).filter(i => i.qty>0));
+  const remove = (id) => setCart(c => c.filter(i => i.id !== id));
+  const subtotal = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  const total = subtotal * 1.08;
+  const tierIdx = TIERS.findIndex(x => x.id === tier.id);
+  const earnPercent = [0,5,10,15][tierIdx];
+  const earned = Math.round(subtotal * earnPercent / 100);
+
+  if (cart.length === 0) {
+    return (
+      <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+        <Header t={t} go={go} title="Shopping bag"/>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:30, textAlign:'center' }}>
+          <ShoppingBag size={36} strokeWidth={1} color={t.text}/>
+          <div style={{ ...T.display4, marginTop:20 }}>Your bag is empty</div>
+          <div style={{ ...T.bodySm, color:t.textDim, marginTop:10, maxWidth:220 }}>Find pieces you love and they&rsquo;ll appear here.</div>
+          <button onClick={() => go('home')} style={{
+            marginTop:26, padding:'14px 24px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+            ...T.button, fontFamily:'inherit', borderRadius:r.md,
+          }}>Continue shopping</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <Header t={t} go={go} title={`Bag (${cart.length})`}/>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:200 }}>
+        {cart.map(item => (
+          <div key={item.id} style={{ display:'flex', gap:14, padding:'18px 20px', borderBottom:`1px solid ${t.border}` }}>
+            <div style={{ width:84, height:112, flexShrink:0, borderRadius:r.sm, overflow:'hidden' }}>
+              <ProductImage p={item} t={t} fill showSale={false}/>
+            </div>
+            <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', minHeight:112 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ ...T.eyebrowS, color:t.textDim, fontSize:9, letterSpacing:1.2 }}>{item.brand}</div>
+                  <div style={{ ...T.bodySm, marginTop:5, lineHeight:1.4,
+                    overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{item.name}</div>
+                </div>
+                <button onClick={() => remove(item.id)} style={{
+                  background:'none', border:'none', cursor:'pointer', color:t.textDim, padding:0,
+                  display:'flex', alignSelf:'flex-start', flexShrink:0,
+                }}><X size={14} strokeWidth={1.5}/></button>
+              </div>
+              <div style={{ ...T.caption, color:t.textDim, marginTop:6 }}>Size M · Stone</div>
+              <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <QtyStepper t={t} qty={item.qty} onMinus={() => update(item.id, -1)} onPlus={() => update(item.id, +1)}/>
+                <div style={{ ...T.price, fontSize:14 }}>${(item.price * item.qty).toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {earnPercent > 0 && (
+          <div style={{ margin:20, padding:'14px 16px', borderRadius:r.md,
+            background:`linear-gradient(95deg, ${tier.gradient[0]} 0%, ${tier.gradient[1]} 100%)`,
+            color:tier.foil, display:'flex', alignItems:'center', gap:12, position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', inset:0,
+              background:`radial-gradient(ellipse 60% 100% at 80% 50%, ${tier.foil}30 0%, transparent 60%)` }}/>
+            <Sparkles size={16} strokeWidth={1.5} style={{ position:'relative' }}/>
+            <div style={{ flex:1, position:'relative' }}>
+              <div style={{ ...T.eyebrowS, opacity:0.85 }}>{tier.name.toUpperCase()} REWARDS</div>
+              <div style={{ ...T.bodySm, marginTop:1 }}>You&rsquo;ll earn <strong>${earned}</strong> in store credit</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ margin:'0 20px 20px', padding:'14px 16px', border:`1px solid ${t.borderStrong}`, borderRadius:r.md,
+          display:'flex', alignItems:'center', gap:12 }}>
+          <Tag size={14} strokeWidth={1.5}/>
+          <div style={{ flex:1 }}>
+            <div style={{ ...T.buttonSm, fontSize:11, letterSpacing:1.4 }}>Add code or member offer</div>
+            <div style={{ ...T.caption, color:t.textDim, marginTop:2 }}>3 offers available</div>
+          </div>
+          <ChevronRight size={14} strokeWidth={1.5}/>
+        </div>
+
+        <div style={{ padding:'8px 20px 20px' }}>
+          <Eyebrow t={t}>Order summary</Eyebrow>
+          <div style={{ marginTop:14 }}>
+            {[['Subtotal',`$${subtotal.toFixed(2)}`],['Estimated delivery','Free'],['Estimated tax',`$${(subtotal*0.08).toFixed(2)}`]].map(([l,v]) => (
+              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', ...T.bodySm }}>
+                <span style={{ color:t.textDim }}>{l}</span>
+                <span style={{ color:t.text, fontWeight:500 }}>{v}</span>
+              </div>
+            ))}
+            <div style={{ height:1, background:t.border, margin:'12px 0' }}/>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+              <span style={{ ...T.button, fontSize:12, letterSpacing:1.4 }}>Total (incl. tax)</span>
+              <span style={{ ...T.display4, fontSize:24 }}>${total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        padding:'12px 20px 16px', background:t.bg, borderTop:`1px solid ${t.border}` }}>
+        <button onClick={() => go('checkout')} style={{
+          width:'100%', padding:'15px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+          ...T.button, fontFamily:'inherit', borderRadius:r.md,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+        }}>Continue to checkout <ArrowRight size={14} strokeWidth={1.5}/></button>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── CHECKOUT ──────── */
+const Steps = ({ t, active }) => (
+  <div style={{ padding:'16px 20px', borderBottom:`1px solid ${t.border}`, display:'flex', alignItems:'center', gap:4 }}>
+    {['Delivery','Payment','Confirm'].map((s,i) => (
+      <React.Fragment key={s}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{
+            width:22, height:22, borderRadius:r.pill,
+            background: i<=active?t.text:'transparent',
+            color: i<=active?t.bg:t.textDim,
+            border:`1px solid ${i<=active?t.text:t.borderSolid}`,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:10, fontWeight:700,
+          }}>{i<active?<Check size={10} strokeWidth={3}/>:i+1}</span>
+          <span style={{ ...T.buttonSm, fontSize:10, letterSpacing:1.2, color: i<=active?t.text:t.textDim }}>{s}</span>
+        </div>
+        {i<2 && <div style={{ flex:1, height:1, background:t.borderSolid, margin:'0 8px' }}/>}
+      </React.Fragment>
+    ))}
+  </div>
+);
+
+const CheckoutScreen = ({ t, go, cart }) => {
+  const subtotal = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  const total = subtotal * 1.08;
+  const [address, setAddress] = useState(0);
+  const [delivery, setDelivery] = useState(1);
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <Header t={t} go={go} title="Checkout" back="cart"/>
+      <Steps t={t} active={0}/>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:110 }}>
+        <div style={{ padding:20 }}>
+          <Eyebrow t={t}>Delivery address</Eyebrow>
+          <div style={{ marginTop:14 }}>
+            {[
+              { label:'Home', name:'Alex Mehta', addr:'12B Pali Hill, Bandra W\nMumbai 400050, IN', tag:'Default' },
+              { label:'Work', name:'Alex Mehta', addr:'WeWork BKC, G Block\nMumbai 400051, IN' },
+            ].map((a,i) => (
+              <button key={i} onClick={() => setAddress(i)} style={{
+                width:'100%', textAlign:'left', padding:'16px', marginBottom:8, borderRadius:r.md,
+                border: address===i?`1.5px solid ${t.text}`:`1px solid ${t.borderSolid}`,
+                background:t.bg, color:t.text, cursor:'pointer', fontFamily:'inherit',
+                display:'flex', gap:12,
+              }}>
+                <div style={{ width:16, height:16, borderRadius:r.pill, marginTop:2,
+                  border:`1.5px solid ${address===i?t.text:t.borderSolid}`,
+                  background: address===i?t.text:'transparent', flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ ...T.buttonSm, fontSize:11, letterSpacing:1.2 }}>{a.label}</span>
+                    {a.tag && <span style={{ ...T.eyebrowS, fontSize:9, letterSpacing:1.2, color:t.textDim }}>· {a.tag}</span>}
+                  </div>
+                  <div style={{ ...T.bodySm, marginTop:6 }}>{a.name}</div>
+                  <div style={{ ...T.caption, color:t.textDim, marginTop:4, whiteSpace:'pre-line' }}>{a.addr}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <button style={{
+            width:'100%', padding:14, marginTop:4, borderRadius:r.md,
+            background:'transparent', border:`1px dashed ${t.borderSolid}`, color:t.text, cursor:'pointer',
+            ...T.buttonSm, fontFamily:'inherit',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+          }}><Plus size={13} strokeWidth={1.5}/> Add new address</button>
+        </div>
+        <div style={{ height:1, background:t.border, margin:'12px 20px' }}/>
+        <div style={{ padding:20 }}>
+          <Eyebrow t={t}>Delivery method</Eyebrow>
+          <div style={{ marginTop:14 }}>
+            {[
+              { name:'Standard',       sub:'Tomorrow · 12 – 4 PM',  price:'Free' },
+              { name:'Vision Express', sub:'Today before 8 PM',     price:'$4.99', tag:'Recommended' },
+              { name:'Click & collect',sub:'Pick up in-store',      price:'Free' },
+            ].map((d,i) => (
+              <button key={d.name} onClick={() => setDelivery(i)} style={{
+                width:'100%', textAlign:'left', padding:'14px 16px', marginBottom:8, borderRadius:r.md,
+                border: delivery===i?`1.5px solid ${t.text}`:`1px solid ${t.borderSolid}`,
+                background:t.bg, color:t.text, cursor:'pointer', fontFamily:'inherit',
+                display:'flex', alignItems:'center', gap:12,
+              }}>
+                <Truck size={16} strokeWidth={1.5}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ ...T.bodySm, fontWeight:600 }}>{d.name}</span>
+                    {d.tag && <span style={{ ...T.eyebrowS, fontSize:9, letterSpacing:1.2, color:t.primary }}>· {d.tag}</span>}
+                  </div>
+                  <div style={{ ...T.caption, color:t.textDim, marginTop:2 }}>{d.sub}</div>
+                </div>
+                <div style={{ ...T.price }}>{d.price}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        padding:'12px 20px 16px', background:t.bg, borderTop:`1px solid ${t.border}` }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+          <span style={{ ...T.caption, color:t.textDim }}>Total (incl. tax)</span>
+          <span style={{ ...T.priceL, fontSize:18 }}>${total.toFixed(2)}</span>
+        </div>
+        <button onClick={() => go('payment')} style={{
+          width:'100%', padding:'15px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+          ...T.button, fontFamily:'inherit', borderRadius:r.md,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        }}>Continue to payment <ArrowRight size={14} strokeWidth={1.5}/></button>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── PAYMENT ──────── */
+const PaymentScreen = ({ t, go, cart, tier, spend, memberName }) => {
+  const subtotal = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  const total = subtotal * 1.08;
+  const [method, setMethod] = useState('card');
+  const earnPercent = [0,5,10,15][TIERS.findIndex(x => x.id === tier.id)];
+  const earned = Math.round(subtotal * earnPercent / 100);
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <Header t={t} go={go} title="Payment" back="checkout"/>
+      <Steps t={t} active={1}/>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:110 }}>
+        <div style={{ padding:20 }}>
+          <TierCard tier={tier} member={memberName} spend={spend} t={t}/>
+          <div style={{ marginTop:28 }}>
+            <Eyebrow t={t}>Payment method</Eyebrow>
+            <div style={{ marginTop:14 }}>
+              {[
+                { id:'card',  icon:CreditCard, name:'Vision Card',     sub:'•••• 4218 · 09/29' },
+                { id:'upi',   icon:Smartphone, name:'UPI / Google Pay',sub:'alex@oksbi' },
+                { id:'apple', icon:Apple,      name:'Apple Pay',       sub:'Touch ID required' },
+                { id:'cod',   icon:Package,    name:'Cash on delivery',sub:'Pay on arrival' },
+              ].map(m => (
+                <button key={m.id} onClick={() => setMethod(m.id)} style={{
+                  width:'100%', textAlign:'left', padding:'14px 16px', marginBottom:8, borderRadius:r.md,
+                  border: method===m.id?`1.5px solid ${t.text}`:`1px solid ${t.borderSolid}`,
+                  background:t.bg, color:t.text, cursor:'pointer', fontFamily:'inherit',
+                  display:'flex', alignItems:'center', gap:12,
+                }}>
+                  <m.icon size={16} strokeWidth={1.5}/>
+                  <div style={{ flex:1 }}>
+                    <div style={{ ...T.bodySm, fontWeight:600 }}>{m.name}</div>
+                    <div style={{ ...T.caption, color:t.textDim, marginTop:2 }}>{m.sub}</div>
+                  </div>
+                  <div style={{ width:16, height:16, borderRadius:r.pill,
+                    border:`1.5px solid ${method===m.id?t.text:t.borderSolid}`,
+                    background: method===m.id?t.text:'transparent',
+                    display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {method===m.id && <Check size={9} color={t.bg} strokeWidth={3}/>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {earnPercent > 0 && (
+            <div style={{ marginTop:20, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, borderRadius:r.md,
+              background:t.primarySoft, border:`1px solid ${t.primary}33` }}>
+              <Sparkles size={14} color={t.primary} strokeWidth={1.5}/>
+              <div style={{ flex:1, ...T.caption, color:t.text }}>
+                You&rsquo;ll earn <strong>${earned} store credit</strong> from this order
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop:24, paddingTop:20, borderTop:`1px solid ${t.border}` }}>
+            <Eyebrow t={t}>Order summary</Eyebrow>
+            <div style={{ marginTop:14 }}>
+              {[['Items','$'+subtotal.toFixed(2)],['Delivery','Free'],['Tax','$'+(subtotal*0.08).toFixed(2)]].map(([l,v]) => (
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', ...T.bodySm }}>
+                  <span style={{ color:t.textDim }}>{l}</span><span>{v}</span>
+                </div>
+              ))}
+              <div style={{ height:1, background:t.border, margin:'12px 0' }}/>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+                <span style={{ ...T.button, fontSize:12, letterSpacing:1.4 }}>You pay</span>
+                <span style={{ ...T.display4 }}>${total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        padding:'12px 20px 16px', background:t.bg, borderTop:`1px solid ${t.border}` }}>
+        <button onClick={() => go('success')} style={{
+          width:'100%', padding:'15px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+          ...T.button, fontFamily:'inherit', borderRadius:r.md,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+        }}><Lock size={12} strokeWidth={1.5}/> Pay ${total.toFixed(2)}</button>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── SUCCESS ──────── */
+const SuccessScreen = ({ t, go, clearCart, tier, memberEmail }) => {
+  const earnPercent = [0,5,10,15][TIERS.findIndex(x => x.id === tier.id)];
+  const greet = firstNameFromEmail(memberEmail);
+  const receiptTo = (memberEmail || '').trim() || 'your email';
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <div style={{ flex:1, minHeight:0, overflowY:'auto', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:30, textAlign:'center' }}>
+        <div style={{ width:64, height:64, borderRadius:r.pill, border:`1.5px solid ${t.text}`,
+          display:'flex', alignItems:'center', justifyContent:'center', marginBottom:26 }}>
+          <Check size={28} color={t.text} strokeWidth={1.5}/>
+        </div>
+        <Eyebrow t={t} color={t.primary}>Order #VSN-72491</Eyebrow>
+        <div style={{ ...T.display3, fontSize:36, marginTop:14 }}>
+          Thank you,<br/><em style={{ fontStyle:'italic' }}>{greet}.</em>
+        </div>
+        <div style={{ ...T.bodySm, color:t.textDim, marginTop:14, maxWidth:250 }}>
+          Your order has been confirmed. We&rsquo;ve sent a receipt to {receiptTo}.
+        </div>
+        <div style={{ marginTop:32, width:'100%', textAlign:'left' }}>
+          <div style={{ padding:'14px 0', borderTop:`1px solid ${t.border}`, borderBottom:`1px solid ${t.border}`, display:'flex', alignItems:'center', gap:14 }}>
+            <Truck size={16} strokeWidth={1.5}/>
+            <div style={{ flex:1 }}>
+              <div style={{ ...T.eyebrowS, color:t.textDim }}>ARRIVING</div>
+              <div style={{ ...T.bodySm, fontWeight:500, marginTop:3 }}>Tomorrow before 4 PM</div>
+            </div>
+            <ArrowRight size={14} strokeWidth={1.5}/>
+          </div>
+          {earnPercent > 0 && (
+            <div style={{ padding:'14px 0', borderBottom:`1px solid ${t.border}`, display:'flex', alignItems:'center', gap:14 }}>
+              <Sparkles size={16} strokeWidth={1.5} color={t.primary}/>
+              <div style={{ flex:1 }}>
+                <div style={{ ...T.eyebrowS, color:t.textDim }}>EARNED</div>
+                <div style={{ ...T.bodySm, fontWeight:500, marginTop:3 }}>$54 store credit · {tier.name}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ padding:'20px', display:'flex', gap:8, borderTop:`1px solid ${t.border}` }}>
+        <button onClick={() => go('orders')} style={{
+          flex:1, padding:'14px', background:t.bg, color:t.text, border:`1px solid ${t.borderStrong}`, cursor:'pointer',
+          ...T.buttonSm, fontFamily:'inherit', borderRadius:r.md,
+        }}>Track order</button>
+        <button onClick={() => { clearCart(); go('home'); }} style={{
+          flex:1, padding:'14px', background:t.text, color:t.bg, border:'none', cursor:'pointer',
+          ...T.buttonSm, fontFamily:'inherit', borderRadius:r.md,
+        }}>Continue</button>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── ORDERS ──────── */
+const OrdersScreen = ({ t, go }) => {
+  const orders = [
+    { id:'VSN-72491', date:'Today · 9:42', status:'Out for delivery', step:2, items:3, total:547.89, color:t.primary },
+    { id:'VSN-72380', date:'Yesterday',     status:'Delivered',        step:3, items:1, total:78.00,  color:t.success },
+    { id:'VSN-71998', date:'12 May',         status:'Delivered',        step:3, items:2, total:198.50, color:t.success },
+    { id:'VSN-71755', date:'4 May',          status:'Cancelled',        step:0, items:1, total:64.00,  color:t.textDim },
+  ];
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <Header t={t} go={go} title="My orders" back="profile"/>
+      <div style={{ display:'flex', borderBottom:`1px solid ${t.border}` }}>
+        {['All','Active','Delivered','Cancelled'].map((tab,i) => (
+          <button key={tab} style={{
+            flex:1, padding:'14px 0', background:'transparent', border:'none', cursor:'pointer',
+            ...T.buttonSm, fontSize:10, letterSpacing:1.4, color: i===0?t.text:t.textDim,
+            borderBottom: i===0?`2px solid ${t.text}`:'2px solid transparent',
+            fontFamily:'inherit',
+          }}>{tab}</button>
+        ))}
+      </div>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:30 }}>
+        {orders.map(o => (
+          <div key={o.id} style={{ padding:20, borderBottom:`1px solid ${t.border}` }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+              <div>
+                <div style={{ ...T.eyebrowS, color:t.textDim, fontSize:9, letterSpacing:1.4 }}>{o.date.toUpperCase()}</div>
+                <div style={{ ...T.bodySm, fontSize:14, fontWeight:600, marginTop:5 }}>#{o.id}</div>
+              </div>
+              <div style={{ ...T.eyebrowS, fontSize:9, letterSpacing:1.4, color:o.color }}>● {o.status.toUpperCase()}</div>
+            </div>
+            {o.step > 0 && o.step < 3 && (
+              <div style={{ display:'flex', gap:4, margin:'14px 0' }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{ flex:1, height:2, background: i<=o.step?o.color:t.border, borderRadius:r.pill }}/>
+                ))}
+              </div>
+            )}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop: o.step>0&&o.step<3?0:14 }}>
+              <span style={{ ...T.caption, color:t.textDim }}>{o.items} item{o.items>1?'s':''} · ${o.total}</span>
+              <span style={{ ...T.buttonSm, borderBottom:`1px solid ${t.text}`, paddingBottom:1 }}>View</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ──────── WISHLIST ──────── */
+const WishlistScreen = ({ t, go, wishlist, toggleWish }) => {
+  const list = PRODUCTS.filter(p => wishlist.has(p.id));
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, background:t.bg }}>
+      <Header t={t} go={go} title={`Saved (${list.length})`}/>
+      {list.length === 0 ? (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:30, textAlign:'center' }}>
+          <Heart size={36} strokeWidth={1} color={t.text}/>
+          <div style={{ ...T.display4, marginTop:20 }}>Save things you love</div>
+          <div style={{ ...T.bodySm, color:t.textDim, marginTop:10, maxWidth:200 }}>Tap the heart on any product to keep it here.</div>
+        </div>
+      ) : (
+        <div style={{ flex:1, overflowY:'auto', minHeight:0, padding:'20px 20px 80px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            {list.map(p => <ProductCard key={p.id} p={p} t={t} go={go} toggleWish={toggleWish} wished/>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ──────── PROFILE ──────── */
+const ProfileSection = ({ t, title, rows }) => (
+  <div style={{ borderBottom:`1px solid ${t.border}` }}>
+    <div style={{ padding:'20px 20px 8px' }}><Eyebrow t={t}>{title}</Eyebrow></div>
+    {rows.map((row,i) => (
+      <button key={i} onClick={row.go} style={{
+        width:'100%', padding:'14px 20px', background:'transparent', border:'none', cursor:'pointer',
+        display:'flex', alignItems:'center', gap:14, color:t.text, textAlign:'left', fontFamily:'inherit',
+        borderTop: i===0?'none':`1px solid ${t.border}`,
+      }}>
+        <row.i size={16} strokeWidth={1.5}/>
+        <span style={{ flex:1, ...T.bodySm, fontWeight:500 }}>{row.l}</span>
+        {row.h && <span style={{ ...T.caption, color:t.textDim }}>{row.h}</span>}
+        <ChevronRight size={14} color={t.textDim} strokeWidth={1.5}/>
+      </button>
+    ))}
+  </div>
+);
+
+const ProfileScreen = ({ t, go, theme, setTheme, tier, spend, memberEmail, signOut }) => {
+  const greet = firstNameFromEmail(memberEmail);
+  const emailLine = (memberEmail || '').trim() ? `${(memberEmail || '').trim()} · since 2023` : 'Sign in to add your email · since 2023';
+  return (
+  <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, background:t.bg }}>
+    <Header t={t} go={go} title="Account"/>
+    <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:80, WebkitOverflowScrolling:'touch' }}>
+      <div style={{ padding:'28px 20px 20px' }}>
+        <Eyebrow t={t} color={tier.color}>VISION · {tier.name.toUpperCase()}</Eyebrow>
+        <div style={{ ...T.display3, marginTop:14 }}>Hello, <em style={{ fontStyle:'italic' }}>{greet}.</em></div>
+        <div style={{ ...T.caption, color:t.textDim, marginTop:6 }}>{emailLine}</div>
+      </div>
+      <div style={{ padding:'0 20px 20px' }}>
+        <div onClick={() => go('tier')} style={{ cursor:'pointer' }}>
+          <TierCard tier={tier} member={greet} spend={spend} t={t}/>
+        </div>
+      </div>
+      <div style={{ padding:'0 20px 24px', display:'flex', gap:16 }}>
+        {[{ l:'Orders',v:'12' },{ l:'Saved',v:'8' },{ l:'Credit',v:'$192' }].map(s => (
+          <div key={s.l} style={{ flex:1 }}>
+            <div style={{ fontSize:26, fontWeight:200, letterSpacing:-1 }}>{s.v}</div>
+            <div style={{ ...T.eyebrowS, color:t.textDim, marginTop:4 }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'16px 20px', borderTop:`1px solid ${t.border}`, borderBottom:`1px solid ${t.border}`,
+        display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {theme==='light' ? <Sun size={16} strokeWidth={1.5}/> : <Moon size={16} strokeWidth={1.5}/>}
+          <span style={{ ...T.bodySm, fontWeight:500 }}>{theme==='light'?'Light mode':'Dark mode'}</span>
+        </div>
+        <button onClick={() => setTheme(theme==='light'?'dark':'light')} style={{
+          width:42, height:24, border:`1px solid ${t.borderStrong}`, borderRadius:r.pill,
+          background: theme==='dark'?t.text:'transparent', position:'relative', cursor:'pointer',
+        }}>
+          <span style={{ position:'absolute', top:1, left: theme==='dark'?19:1,
+            width:20, height:20, borderRadius:r.pill, background: theme==='dark'?t.bg:t.text, transition:'all .25s' }}/>
+        </button>
+      </div>
+
+      <div style={{ padding:'20px' }}>
+        <Eyebrow t={t}>Services</Eyebrow>
+        <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:6 }}>
+          {[
+            { i:Truck,       l:'Track',    s:'Order' },
+            { i:Package,     l:'Easy',     s:'Returns' },
+            { i:Shield,      l:'Size',     s:'Guide' },
+            { i:MapPin,      l:'Store',    s:'Locator' },
+            { i:HelpCircle,  l:'Customer', s:'Support' },
+          ].map(srv => (
+            <div key={srv.l} style={{
+              aspectRatio:'1/1.1', background:t.bg2, border:`1px solid ${t.border}`, borderRadius:r.md,
+              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+              cursor:'pointer', padding:6, color:t.text,
+            }}>
+              <srv.i size={17} strokeWidth={1.5}/>
+              <div style={{ textAlign:'center', lineHeight:1.25 }}>
+                <div style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.3 }}>{srv.l}</div>
+                <div style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.3 }}>{srv.s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <ProfileSection t={t} title="Shopping" rows={[
+        { i:Package, l:'My orders', h:'2 active', go:() => go('orders') },
+        { i:Heart, l:'Saved items', go:() => go('wishlist') },
+        { i:Award, l:'Membership & rewards', h:tier.name, go:() => go('tier') },
+        { i:MapPin, l:'Addresses', h:'2 saved' },
+        { i:CreditCard, l:'Payment methods' },
+      ]}/>
+      <ProfileSection t={t} title="More" rows={[
+        { i:Bell, l:'Notifications' },
+        { i:HelpCircle, l:'Help & support' },
+        { i:Settings, l:'Settings' },
+      ]}/>
+      <button onClick={() => signOut()} style={{
+        margin:'20px', padding:14, background:'transparent', border:`1px solid ${t.borderStrong}`, color:t.text,
+        ...T.buttonSm, fontFamily:'inherit', borderRadius:r.md, cursor:'pointer', width:'calc(100% - 40px)',
+        display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+      }}><LogOut size={13} strokeWidth={1.5}/> Sign out</button>
+      <div style={{ textAlign:'center', padding:'0 20px 24px', ...T.eyebrowS, color:t.textMute, letterSpacing:1.4 }}>
+        VISION STORE· APP V1.0 · MUMBAI
+      </div>
+    </div>
+  </div>
+  );
+};
+
+/* ──────── TIER ──────── */
+const TierScreen = ({ t, go, tier, spend, memberName }) => {
+  const tierIdx = TIERS.findIndex(x => x.id === tier.id);
+  const next = TIERS[tierIdx + 1];
+  const remaining = next ? next.threshold - spend : 0;
+  const progressInTier = next ? (spend - tier.threshold) / (next.threshold - tier.threshold) : 1;
+  return (
+    <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', background:t.bg }}>
+      <Header t={t} go={go} title="Membership" back="profile"/>
+      <div style={{ flex:1, overflowY:'auto', minHeight:0, paddingBottom:30 }}>
+        <div style={{ padding:'24px 20px' }}>
+          <TierCard tier={tier} member={memberName} spend={spend} t={t}/>
+        </div>
+        {next && (
+          <div style={{ padding:'0 20px 28px' }}>
+            <div style={{ padding:'20px', background:t.bg2, border:`1px solid ${t.border}`, borderRadius:r.md }}>
+              <Eyebrow t={t}>Progress to {next.name}</Eyebrow>
+              <div style={{ marginTop:16, display:'flex', alignItems:'baseline', gap:8 }}>
+                <span style={{ ...T.display3, fontSize:36 }}>${remaining.toLocaleString()}</span>
+                <span style={{ ...T.bodySm, color:t.textDim }}>to unlock</span>
+              </div>
+              <div style={{ marginTop:18, position:'relative', height:4, background:t.borderSolid, borderRadius:r.pill }}>
+                <div style={{ position:'absolute', inset:0, width:`${progressInTier*100}%`, borderRadius:r.pill,
+                  background:`linear-gradient(90deg, ${tier.color}, ${next.color})`, transition:'width .6s ease' }}/>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, ...T.eyebrowS, fontSize:9, letterSpacing:1.2, color:t.textDim }}>
+                <span>${tier.threshold.toLocaleString()} · {tier.name.toUpperCase()}</span>
+                <span>${next.threshold.toLocaleString()} · {next.name.toUpperCase()}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div style={{ padding:'0 20px 28px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+            <Eyebrow t={t}>Your benefits</Eyebrow>
+            <span style={{ ...T.eyebrowS, fontSize:10, color:tier.color, letterSpacing:1.4 }}>{tier.name}</span>
+          </div>
+          {tier.benefits.map((b,i) => (
+            <div key={i} style={{ padding:'14px 0', borderBottom: i<tier.benefits.length-1?`1px solid ${t.border}`:'none',
+              display:'flex', alignItems:'center', gap:14 }}>
+              <div style={{ width:18, height:18, borderRadius:r.pill, background:tier.color, color:'#fff',
+                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Check size={10} strokeWidth={3}/>
+              </div>
+              <span style={{ ...T.bodySm }}>{b}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding:'20px 20px 32px', borderTop:`1px solid ${t.border}` }}>
+          <Eyebrow t={t}>The ladder</Eyebrow>
+          <div style={{ marginTop:16 }}>
+            {TIERS.map((tr,i) => {
+              const unlocked = i <= tierIdx;
+              const current = i === tierIdx;
+              return (
+                <div key={tr.id} style={{ padding:'16px 0',
+                  borderBottom: i<TIERS.length-1?`1px solid ${t.border}`:'none',
+                  display:'flex', alignItems:'center', gap:14, opacity: unlocked?1:0.5 }}>
+                  <div style={{ width:28, height:28, borderRadius:r.pill,
+                    background: unlocked?tr.color:'transparent',
+                    border: unlocked?'none':`1px solid ${t.borderSolid}`,
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, color:'#fff' }}>
+                    {unlocked ? <Check size={14} strokeWidth={2}/> : <Lock size={11} strokeWidth={1.5} color={t.textDim}/>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ ...T.body, fontSize:14, fontWeight:500 }}>{tr.name}</span>
+                      {current && <span style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.4, color:'#fff', background:tr.color, padding:'2px 6px', borderRadius:r.sm }}>CURRENT</span>}
+                    </div>
+                    <div style={{ ...T.caption, color:t.textDim, marginTop:2 }}>
+                      {tr.threshold===0 ? 'Welcome tier' : `$${tr.threshold.toLocaleString()}+ annually`}
+                    </div>
+                  </div>
+                  <span style={{ ...T.eyebrowS, fontSize:10, letterSpacing:1.2, color:t.textDim }}>{tr.benefits.length} perks</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ padding:'0 20px 32px' }}>
+          <div style={{ ...T.micro, color:t.textMute, lineHeight:1.7, fontWeight:400 }}>
+            Tiers are reviewed annually based on calendar-year spend. Benefits renew on 1 January. Some perks subject to availability and region.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ──────── BOTTOM NAV ──────── */
+const BottomNav = ({ t, screen, go, cartCount, wishCount }) => {
+  const items = [
+    { id:'home',     icon:Globe,       label:'Shop' },
+    { id:'search',   icon:Search,      label:'Search' },
+    { id:'wishlist', icon:Heart,       label:'Saved', badge:wishCount },
+    { id:'cart',     icon:ShoppingBag, label:'Bag',   badge:cartCount },
+    { id:'profile',  icon:User,        label:'Me' },
+  ];
+  return (
+    <div style={{ position:'absolute', bottom:0, left:0, right:0, height:60, zIndex:20,
+      background:t.nav, borderTop:`1px solid ${t.navBorder}`,
+      display:'flex', justifyContent:'space-around', alignItems:'flex-start', paddingTop:11 }}>
+      {items.map(i => {
+        const active = screen === i.id;
+        return (
+          <button key={i.id} onClick={() => go(i.id)} style={{
+            background:'transparent', border:'none', cursor:'pointer', fontFamily:'inherit',
+            display:'flex', flexDirection:'column', alignItems:'center', gap:5,
+            color: active?t.text:t.textDim, position:'relative', padding:'4px 8px',
+          }}>
+            <div style={{ position:'relative' }}>
+              <i.icon size={17} strokeWidth={active?2:1.5}/>
+              {!!i.badge && (
+                <span style={{ position:'absolute', top:-3, right:-7,
+                  fontSize:7, fontWeight:700, color:'#fff', background:t.primary,
+                  minWidth:13, height:13, borderRadius:r.pill, padding:'0 3px',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>{i.badge}</span>
+              )}
+            </div>
+            <span style={{ ...T.eyebrowS, fontSize:8, letterSpacing:1.2 }}>{i.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ──────── ROOT ──────── */
+function VisionApp() {
+  const [theme, setTheme] = useState('light');
+  const [screen, setScreen] = useState(() => getInitialScreen());
+  const [prevScreen, setPrevScreen] = useState('home');
+  const [product, setProduct] = useState(null);
+  const [collectionSlug, setCollectionSlug] = useState('new-season');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [cart, setCart] = useState([{ ...PRODUCTS[0], qty:1 },{ ...PRODUCTS[3], qty:2 }]);
+  const [wishlist, setWishlist] = useState(new Set([2,6]));
+  const [memberEmail, setMemberEmail] = useState(() => getStoredMemberEmail());
+
+  const spend = getMemberSpendForEmail(memberEmail);
+  const memberName = firstNameFromEmail(memberEmail);
+  const t = themes[theme];
+  const tier = getTier(spend);
+
+  const go = (s, p, ctx) => {
+    if (p) setProduct(p);
+    if (ctx) setCollectionSlug(ctx);
+    if (s !== screen) setPrevScreen(screen);
+    setScreen(s);
+    setDrawerOpen(false);
+  };
+  const signOut = () => {
+    clearVisionSession();
+    go('splash');
+  };
+  const completePasswordSignIn = (email, password) => {
+    const em = String(email || '').trim();
+    const pw = String(password || '');
+    if (!em || !pw) {
+      alert('Please enter both email and password.');
+      return;
+    }
+    notifyAndroidLogin(em, pw);
+    setMemberEmail(em);
+    saveVisionSession(em);
+    go('home');
+  };
+  const completeOAuthSignIn = () => {
+    saveVisionSession(memberEmail);
+    go('home');
+  };
+  const goBack = () => setScreen(prevScreen || 'home');
+  const addToCart = (p) => setCart(prev => {
+    const ex = prev.find(i => i.id === p.id);
+    return ex ? prev.map(i => i.id===p.id?{ ...i, qty:i.qty+1 }:i) : [...prev, { ...p, qty:1 }];
+  });
+  const toggleWish = (id) => setWishlist(prev => { const n = new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
+  const clearCart = () => setCart([]);
+
+  const cartCount = cart.reduce((s,i) => s+i.qty, 0);
+  const showNav = ['home','search','wishlist','profile'].includes(screen);
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'splash':   return <SplashScreen t={t} go={go}/>;
+      case 'login':    return <LoginScreen t={t} go={go} email={memberEmail} setEmail={setMemberEmail} onPasswordSignIn={completePasswordSignIn} onOAuthSignIn={completeOAuthSignIn}/>;
+      case 'home':     return <HomeScreen t={t} go={go} toggleWish={toggleWish} wishlist={wishlist} cartCount={cartCount} openDrawer={() => setDrawerOpen(true)} tier={tier} spend={spend}/>;
+      case 'category': return <CategoryScreen t={t} go={go} slug={collectionSlug} toggleWish={toggleWish} wishlist={wishlist}/>;
+      case 'story':    return <StoryScreen t={t} go={go} toggleWish={toggleWish} wishlist={wishlist}/>;
+      case 'search':   return <SearchScreen t={t} theme={theme} go={go} toggleWish={toggleWish} wishlist={wishlist}/>;
+      case 'product':  return <ProductScreen t={t} go={go} goBack={goBack} product={product} addToCart={addToCart} toggleWish={toggleWish} wished={wishlist.has(product?.id)} tier={tier}/>;
+      case 'cart':     return <CartScreen t={t} go={go} cart={cart} setCart={setCart} tier={tier}/>;
+      case 'checkout': return <CheckoutScreen t={t} go={go} cart={cart}/>;
+      case 'payment':  return <PaymentScreen t={t} go={go} cart={cart} tier={tier} spend={spend} memberName={memberName}/>;
+      case 'success':  return <SuccessScreen t={t} go={go} clearCart={clearCart} tier={tier} memberEmail={memberEmail}/>;
+      case 'orders':   return <OrdersScreen t={t} go={go}/>;
+      case 'wishlist': return <WishlistScreen t={t} go={go} wishlist={wishlist} toggleWish={toggleWish}/>;
+      case 'profile':  return <ProfileScreen t={t} go={go} theme={theme} setTheme={setTheme} tier={tier} spend={spend} memberEmail={memberEmail} signOut={signOut}/>;
+      case 'tier':     return <TierScreen t={t} go={go} tier={tier} spend={spend} memberName={memberName}/>;
+      default: return null;
+    }
+  };
+
+  return (
+    <div style={{ height:'100vh', minHeight:'100vh', background: theme==='light'?'#EDE8DD':'#080705',
+      transition:'background .3s', fontFamily:'Inter,-apple-system,sans-serif',
+      display:'flex', flexDirection:'column', alignItems:'center', overflow:'hidden' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap');
+        * { box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+        body { margin:0; font-family:Inter,sans-serif; }
+        html, body, #root, #root * { scrollbar-width:none; -ms-overflow-style:none; }
+        html::-webkit-scrollbar, body::-webkit-scrollbar,
+        #root::-webkit-scrollbar, #root *::-webkit-scrollbar { display:none; width:0; height:0; }
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+        button, input { font-family:inherit; }
+      `}</style>
+
+      <div style={{ display:'flex', justifyContent:'center', flex:1, minHeight:0, width:'100%' }}>
+        <PhoneFrame t={t}>
+          {renderScreen()}
+          {showNav && <BottomNav t={t} screen={screen} go={go} cartCount={cartCount} wishCount={wishlist.size}/>}
+          <Drawer t={t} open={drawerOpen} close={() => setDrawerOpen(false)} go={go} tier={tier} spend={spend} memberName={memberName} signOut={signOut}/>
+        </PhoneFrame>
+      </div>
+    </div>
+  );
+}
+
+createRoot(document.getElementById("root")).render(<VisionApp />);
+
+</script>
+</body>
+</html>
