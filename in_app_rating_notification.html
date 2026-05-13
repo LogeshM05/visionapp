@@ -1,0 +1,168 @@
+
+<style>
+  .notif-wrap {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 420px; background: var(--color-background-secondary);
+    border-radius: var(--border-radius-lg); padding: 2rem;
+  }
+  .notif-card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-xl);
+    padding: 1.75rem 1.5rem 1.5rem;
+    width: 340px;
+    box-sizing: border-box;
+  }
+  .notif-icon-wrap {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: var(--color-background-info);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1rem;
+  }
+  .notif-icon-wrap i { font-size: 26px; color: var(--color-text-info); }
+  .notif-title {
+    font-size: 17px; font-weight: 500; color: var(--color-text-primary);
+    margin: 0 0 6px;
+  }
+  .notif-subtitle {
+    font-size: 14px; color: var(--color-text-secondary);
+    margin: 0 0 1.25rem; line-height: 1.5;
+  }
+  .stars {
+    display: flex; gap: 8px; margin-bottom: 1.25rem;
+  }
+  .star {
+    cursor: pointer; transition: transform 0.15s;
+    font-size: 36px; color: var(--color-border-secondary);
+    line-height: 1;
+  }
+  .star:hover, .star.active { color: #EF9F27; transform: scale(1.15); }
+  .star.hover-preview { color: #FAC775; }
+  .rating-label {
+    font-size: 13px; color: var(--color-text-secondary);
+    min-height: 18px; margin-bottom: 1.25rem;
+    transition: opacity 0.2s;
+  }
+  .notif-textarea {
+    width: 100%; box-sizing: border-box;
+    font-size: 13px; padding: 10px 12px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    resize: none; height: 72px;
+    font-family: var(--font-sans);
+    margin-bottom: 1rem;
+    display: none;
+  }
+  .notif-textarea::placeholder { color: var(--color-text-tertiary); }
+  .notif-actions { display: flex; gap: 8px; }
+  .btn-dismiss {
+    flex: 1; padding: 9px 0; font-size: 13px; font-weight: 500;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    background: transparent; color: var(--color-text-secondary);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-dismiss:hover { background: var(--color-background-secondary); }
+  .btn-submit {
+    flex: 2; padding: 9px 0; font-size: 13px; font-weight: 500;
+    border: none; border-radius: var(--border-radius-md);
+    background: var(--color-text-primary); color: var(--color-background-primary);
+    cursor: pointer; opacity: 0.35; transition: opacity 0.2s, background 0.15s;
+    pointer-events: none;
+  }
+  .btn-submit.enabled { opacity: 1; pointer-events: all; }
+  .btn-submit.enabled:hover { opacity: 0.85; }
+  .success-state {
+    display: none; flex-direction: column; align-items: center;
+    padding: 1rem 0 0.5rem; text-align: center;
+  }
+  .success-icon { font-size: 40px; color: #1D9E75; margin-bottom: 12px; }
+  .success-title { font-size: 16px; font-weight: 500; margin: 0 0 6px; }
+  .success-sub { font-size: 13px; color: var(--color-text-secondary); margin: 0; }
+</style>
+
+<div class="notif-wrap">
+  <div class="notif-card" id="card">
+    <div class="notif-icon-wrap" aria-hidden="true">
+      <i class="ti ti-message-circle"></i>
+    </div>
+    <p class="notif-title">Enjoying the app?</p>
+    <p class="notif-subtitle">Tap a star to rate your experience. It only takes a second.</p>
+
+    <div class="stars" id="stars" role="group" aria-label="Star rating">
+      <span class="star" data-val="1" role="button" aria-label="1 star" tabindex="0">★</span>
+      <span class="star" data-val="2" role="button" aria-label="2 stars" tabindex="0">★</span>
+      <span class="star" data-val="3" role="button" aria-label="3 stars" tabindex="0">★</span>
+      <span class="star" data-val="4" role="button" aria-label="4 stars" tabindex="0">★</span>
+      <span class="star" data-val="5" role="button" aria-label="5 stars" tabindex="0">★</span>
+    </div>
+    <div class="rating-label" id="rating-label"></div>
+
+    <textarea class="notif-textarea" id="feedback" placeholder="Tell us more (optional)…"></textarea>
+
+    <div class="notif-actions">
+      <button class="btn-dismiss" id="btn-dismiss">Not now</button>
+      <button class="btn-submit" id="btn-submit">Submit rating</button>
+    </div>
+
+    <div class="success-state" id="success">
+      <i class="ti ti-circle-check success-icon"></i>
+      <p class="success-title">Thanks for your feedback!</p>
+      <p class="success-sub">Your rating helps us improve.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const labels = ['', 'Not great 😕', 'Could be better 😐', 'It\'s okay 🙂', 'Pretty good 😊', 'Love it! 🤩'];
+  const stars = document.querySelectorAll('.star');
+  const labelEl = document.getElementById('rating-label');
+  const textarea = document.getElementById('feedback');
+  const submitBtn = document.getElementById('btn-submit');
+  const dismissBtn = document.getElementById('btn-dismiss');
+  const successEl = document.getElementById('success');
+  let selected = 0;
+
+  function updateStars(hoverVal, clickVal) {
+    const val = clickVal || hoverVal;
+    stars.forEach(s => {
+      const v = +s.dataset.val;
+      s.classList.remove('active', 'hover-preview');
+      if (clickVal) {
+        if (v <= clickVal) s.classList.add('active');
+      } else if (hoverVal) {
+        if (v < hoverVal) s.classList.add('active');
+        else if (v === hoverVal) s.classList.add('active');
+        else if (v <= hoverVal) s.classList.add('hover-preview');
+      } else {
+        if (v <= selected) s.classList.add('active');
+      }
+    });
+    labelEl.textContent = labels[hoverVal || clickVal || selected] || '';
+  }
+
+  stars.forEach(s => {
+    s.addEventListener('mouseenter', () => updateStars(+s.dataset.val, selected));
+    s.addEventListener('mouseleave', () => updateStars(0, selected));
+    s.addEventListener('click', () => {
+      selected = +s.dataset.val;
+      updateStars(0, selected);
+      textarea.style.display = 'block';
+      submitBtn.classList.add('enabled');
+    });
+    s.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') s.click(); });
+  });
+
+  submitBtn.addEventListener('click', () => {
+    document.querySelectorAll('.stars, .rating-label, .notif-textarea, .notif-actions, .notif-subtitle').forEach(el => el.style.display = 'none');
+    document.querySelector('.notif-title').textContent = '';
+    successEl.style.display = 'flex';
+  });
+
+  dismissBtn.addEventListener('click', () => {
+    document.getElementById('card').style.opacity = '0.4';
+    document.getElementById('card').style.pointerEvents = 'none';
+  });
+</script>
