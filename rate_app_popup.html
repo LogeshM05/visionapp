@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rate App Popup</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Poppins',sans-serif;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#d6d6d6;
+}
+
+.overlay{
+    width:100%;
+    height:100%;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.35);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.rating-card{
+
+    width:360px;
+    background:white;
+    border-radius:32px;
+    overflow:hidden;
+    position:relative;
+
+    box-shadow:
+        0 20px 50px rgba(0,0,0,0.18),
+        0 5px 15px rgba(0,0,0,0.08);
+
+    animation:popup 0.35s ease;
+}
+
+@keyframes popup{
+    from{
+        transform:scale(0.85) translateY(20px);
+        opacity:0;
+    }
+    to{
+        transform:scale(1);
+        opacity:1;
+    }
+}
+
+.top-bg{
+    height:120px;
+    background:linear-gradient(
+        135deg,
+        #f7dce4,
+        #eac5dd
+    );
+    border-bottom-left-radius:40px;
+    border-bottom-right-radius:40px;
+    position:relative;
+}
+
+.emoji{
+    width:110px;
+    height:110px;
+    background:#ffd33d;
+    border-radius:50%;
+    position:absolute;
+    left:50%;
+    bottom:-55px;
+    transform:translateX(-50%);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:52px;
+
+    box-shadow:
+        0 12px 30px rgba(255,211,61,0.4);
+}
+
+.content{
+    padding:
+        80px
+        28px
+        30px;
+    text-align:center;
+}
+
+.title{
+    font-size:34px;
+    font-weight:700;
+    color:#b11c4f;
+    margin-bottom:16px;
+}
+
+.desc{
+    font-size:20px;
+    line-height:1.7;
+    color:#d38ca6;
+    margin-bottom:34px;
+}
+
+.stars{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:38px;
+}
+
+.star{
+    font-size:52px;
+    cursor:pointer;
+    transition:0.25s;
+    color:#c9c9c9;
+}
+
+.star.active{
+    color:#ffc400;
+}
+
+.star:hover{
+    transform:scale(1.15);
+}
+
+.btn{
+    width:100%;
+    height:58px;
+    border:none;
+    border-radius:999px;
+    background:#b4335e;
+    color:white;
+    font-size:22px;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.25s;
+}
+
+.btn:hover{
+    transform:translateY(-2px);
+    box-shadow:0 10px 20px rgba(180,51,94,0.25);
+}
+
+.skip{
+    margin-top:22px;
+    font-size:22px;
+    color:#9a9a9a;
+    cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="overlay">
+
+    <div class="rating-card">
+
+        <div class="top-bg">
+
+            <div class="emoji">
+                🤩
+            </div>
+
+        </div>
+
+        <div class="content">
+
+            <div class="title">
+                Rate Our App
+            </div>
+
+            <div class="desc">
+                If you enjoy using this app,
+                would you mind taking a moment
+                to rate it? Thanks for your support
+            </div>
+
+            <div class="stars">
+
+                <span class="star active">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+
+            </div>
+
+            <button class="btn">
+                Rate Now
+            </button>
+
+            <div class="skip">
+                Skip
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const stars = document.querySelectorAll('.star');
+
+stars.forEach((star,index)=>{
+
+    star.addEventListener('click',()=>{
+
+        stars.forEach((s,i)=>{
+
+            if(i <= index){
+                s.classList.add('active');
+            }else{
+                s.classList.remove('active');
+            }
+
+        });
+
+    });
+
+});
+
+</script>
+
+</body>
+</html>
