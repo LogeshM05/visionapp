@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0"/>
+
+<title>Vision Store Premium Rewards</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+      rel="stylesheet">
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#d8cec0;
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:390px;
+
+    border-radius:38px;
+    overflow:hidden;
+
+    background:#f7f2ea;
+
+    box-shadow:
+        0 30px 70px rgba(46,33,18,0.18),
+        0 10px 24px rgba(46,33,18,0.08);
+
+    position:relative;
+}
+
+/* CLOSE BUTTON */
+
+.close-btn{
+    position:absolute;
+    top:18px;
+    right:18px;
+
+    width:38px;
+    height:38px;
+
+    border:none;
+    border-radius:50%;
+
+    background:rgba(255,255,255,0.18);
+
+    backdrop-filter:blur(8px);
+
+    color:#ffffff;
+
+    font-size:22px;
+    font-weight:600;
+
+    cursor:pointer;
+
+    z-index:20;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    transition:0.2s ease;
+}
+
+.close-btn:hover{
+    transform:scale(1.05);
+    background:rgba(255,255,255,0.28);
+}
+
+/* HERO */
+
+.hero{
+    position:relative;
+    min-height:360px;
+    overflow:hidden;
+}
+
+.hero-image{
+    position:absolute;
+    inset:0;
+
+    background:
+        linear-gradient(
+            rgba(16,12,8,0.18),
+            rgba(16,12,8,0.52)
+        ),
+        url("image (3).jpeg");
+
+    background-size:cover;
+    background-position:center;
+    transform:scale(1.03);
+}
+
+.hero-content{
+    position:relative;
+    z-index:2;
+    padding:34px 28px 120px;
+}
+
+.brand{
+    color:#f8f3eb;
+    font-size:13px;
+    letter-spacing:6px;
+    font-weight:500;
+}
+
+.line{
+    width:44px;
+    height:1px;
+    background:#e7d9c4;
+    margin-top:18px;
+}
+
+.title{
+    margin-top:28px;
+
+    color:#ffffff;
+
+    font-family:'Cormorant Garamond',serif;
+
+    font-size:64px;
+
+    line-height:0.92;
+
+    font-weight:600;
+
+    letter-spacing:-1px;
+}
+
+.subtitle{
+    margin-top:22px;
+
+    color:rgba(255,255,255,0.92);
+
+    font-size:14px;
+
+    line-height:1.9;
+
+    max-width:230px;
+
+    word-break:break-word;
+}
+
+/* CARD */
+
+.card{
+    position:relative;
+
+    margin:-70px 20px 20px;
+
+    background:rgba(248,244,236,0.96);
+
+    backdrop-filter:blur(14px);
+
+    border-radius:34px;
+
+    padding:24px;
+
+    z-index:5;
+
+    border:1px solid rgba(255,255,255,0.45);
+
+    box-shadow:
+        0 18px 40px rgba(57,41,24,0.10);
+}
+
+.qr-box{
+    background:#ece3d6;
+
+    border-radius:28px;
+
+    padding:24px;
+
+    text-align:center;
+
+    position:relative;
+
+    overflow:hidden;
+}
+
+.qr-box::before{
+    content:"";
+
+    position:absolute;
+
+    width:180px;
+    height:180px;
+
+    border-radius:50%;
+
+    background:rgba(255,255,255,0.18);
+
+    top:-90px;
+    right:-90px;
+}
+
+.qr-image{
+    position:relative;
+    z-index:2;
+
+    width:100%;
+    max-width:230px;
+
+    aspect-ratio:1/1;
+
+    object-fit:contain;
+
+    background:#ffffff;
+
+    border-radius:26px;
+
+    padding:12px;
+
+    box-shadow:
+        0 10px 28px rgba(0,0,0,0.06);
+}
+
+.reward-chip{
+    position:relative;
+    z-index:2;
+
+    margin:22px auto 0;
+
+    width:max-content;
+
+    background:#2c2118;
+
+    color:#ffffff;
+
+    padding:10px 20px;
+
+    border-radius:999px;
+
+    font-size:12px;
+
+    letter-spacing:2px;
+
+    font-weight:600;
+}
+
+.offer{
+    margin-top:28px;
+
+    text-align:center;
+}
+
+.offer-title{
+    color:#2b2117;
+
+    font-family:'Cormorant Garamond',serif;
+
+    font-size:46px;
+
+    line-height:1;
+
+    font-weight:600;
+}
+
+.offer-subtitle{
+    margin-top:14px;
+
+    color:#746554;
+
+    font-size:14px;
+
+    line-height:1.8;
+
+    padding:0 8px;
+}
+
+.footer{
+    margin-top:26px;
+
+    text-align:center;
+
+    color:#8b7b68;
+
+    font-size:11px;
+
+    letter-spacing:2px;
+
+    line-height:1.7;
+}
+
+.redeem-btn{
+    margin-top:28px;
+
+    width:100%;
+
+    border:none;
+
+    border-radius:18px;
+
+    background:#2c2118;
+
+    color:#ffffff;
+
+    padding:18px 20px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    letter-spacing:1px;
+
+    cursor:pointer;
+
+    transition:0.25s ease;
+
+    box-shadow:
+        0 10px 24px rgba(44,33,24,0.18);
+}
+
+.redeem-btn:hover{
+    transform:translateY(-2px);
+    background:#1f1711;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:420px){
+
+    .hero{
+        min-height:330px;
+    }
+
+    .hero-content{
+        padding:28px 24px 110px;
+    }
+
+    .title{
+        font-size:52px;
+    }
+
+    .subtitle{
+        max-width:210px;
+        font-size:13px;
+    }
+
+    .card{
+        margin:-60px 16px 16px;
+        padding:20px;
+    }
+
+    .qr-box{
+        padding:20px;
+    }
+
+    .offer-title{
+        font-size:40px;
+    }
+}
+
+@media(max-width:360px){
+
+    .title{
+        font-size:46px;
+    }
+
+    .subtitle{
+        max-width:180px;
+    }
+
+    .offer-title{
+        font-size:34px;
+    }
+
+    .reward-chip{
+        font-size:11px;
+        padding:9px 16px;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container" id="rewardContainer">
+
+    <!-- CLOSE BUTTON -->
+
+    <button class="close-btn" onclick="closeRewardView()">
+        ×
+    </button>
+
+    <!-- HERO -->
+
+    <div class="hero">
+
+        <div class="hero-image"></div>
+
+        <div class="hero-content">
+
+            <div class="brand">
+                VISION STORE
+            </div>
+
+            <div class="line"></div>
+
+            <div class="title">
+                MEMBER<br>
+                REWARDS
+            </div>
+
+            <div class="subtitle">
+                Premium savings designed for your shopping experience.
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CARD -->
+
+    <div class="card">
+
+        <div class="qr-box">
+
+            <img src="[QR_OFFER_CODE_2_Vision_Store_Offer]"
+                 onerror="this.onerror=null;this.src='https://wiz.resul.io//Uploads/aSW/1/ebuilder/291225073421205_1Qr_code.png';"
+                 alt="Vision QR"
+                 class="qr-image">
+
+            <div class="reward-chip">
+                SCAN AT CHECKOUT
+            </div>
+
+        </div>
+
+        <div class="offer">
+
+            <div class="offer-title">
+                25% OFF
+            </div>
+
+            <div class="offer-subtitle">
+                Instantly redeem your exclusive member benefit during billing.
+            </div>
+
+        </div>
+
+        <button class="redeem-btn" onclick="redeemOffer()">
+            Click to redeem
+        </button>
+
+        <div class="footer">
+            PREMIUM EXPERIENCE • INSTANT REDEMPTION
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function redeemOffer(){
+
+    try {
+
+        if (window.android && android.ResPopupClose) {
+
+            const redeemPayload = {
+                actionName: 'Click to redeem',
+                actionType: 'redeem',
+                actionId: 2
+            };
+
+            android.ResPopupClose(JSON.stringify(redeemPayload));
+            return;
+        }
+
+    } catch (e) {
+        console.log('Android bridge not available');
+    }
+
+    //alert('Offer Redeemed!');
+}
+
+function closeRewardView(){
+
+    // Hide HTML view
+    document.getElementById("rewardContainer").style.display = "none";
+
+    // Android bridge (optional)
+    try {
+        if (window.android && android.ResPopupClose) {
+            const dismissPayload = {
+                actionName: 'Dismiss',
+                actionType: 'dismiss',
+                actionId: 1
+            };
+
+            android.ResPopupClose(JSON.stringify(dismissPayload));
+            return;
+        }
+    } catch (error) {
+        console.log('Android bridge not available');
+    }
+
+    try {
+        if (window.Android && Android.closeView) {
+            Android.closeView();
+            return;
+        }
+    } catch (e) {}
+
+    try {
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'close' }));
+            return;
+        }
+    } catch (e) {}
+
+    if (typeof window.close === 'function') {
+        try { window.close(); } catch (e) {}
+    }
+}
+
+</script>
+
+</body>
+</html>
